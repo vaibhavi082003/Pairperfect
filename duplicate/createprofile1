@@ -1,0 +1,706 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
+
+const initial = {
+  fullName: "",
+  gender: "Female",
+  dob: "",
+  maritalStatus: "Never Married",
+  height: "",
+  phone: "",
+  religion: "Hindu",
+  caste: "",
+  motherTongue: "Hindi",
+  manglik: "Don't Know",
+  education: "",
+  occupation: "",
+  annualIncome: "",
+  city: "",
+  state: "",
+  country: "India",
+  fatherName: "",
+  fatherOccupation: "",
+  motherName: "",
+  motherOccupation: "",
+  siblings: 0,
+  familyType: "Nuclear",
+  diet: "Vegetarian",
+  smoking: "No",
+  drinking: "No",
+  about: "",
+  partnerPreference: "",
+  photoUrl: "",
+};
+
+/* --- Photo Fallback Helper (Same as Home) --- */
+function Photo({ src, name }) {
+  const [failed, setFailed] = useState(false);
+  if (failed || !src) {
+    const initials = (name || "?")
+      .split(" ")
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join("");
+    return <div className="photo-fallback">{initials}</div>;
+  }
+  return <img src={src} alt={name} loading="lazy" onError={() => setFailed(true)} />;
+}
+
+export default function CreateProfile() {
+  const [form, setForm] = useState(initial);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { setUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const calculateAge = (dob) => {
+    if (!dob) return 24;
+    const born = new Date(dob);
+    const now = new Date();
+    let age = now.getFullYear() - born.getFullYear();
+    const beforeBirthday =
+      now.getMonth() < born.getMonth() ||
+      (now.getMonth() === born.getMonth() && now.getDate() < born.getDate());
+    if (beforeBirthday) age--;
+    return age > 0 ? age : 24;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const payload = Object.fromEntries(
+      Object.entries(form).filter(([, v]) => v !== "")
+    );
+
+    try {
+      await api.post("/profile", payload);
+      setUser((prev) => ({ ...prev, profileCreated: true }));
+      navigate("/dashboard");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Failed to save profile. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const Input = ({ label, name, type = "text", ...props }) => (
+    <div className="card-input-group">
+      <label htmlFor={name}>
+        {label} {props.required && <span className="req">*</span>}
+      </label>
+      <input
+        id={name}
+        name={name}
+        type={type}
+        value={form[name]}
+        onChange={handleChange}
+        className="matrimony-input"
+        {...props}
+      />
+    </div>
+  );
+
+  const Select = ({ label, name, options, ...props }) => (
+    <div className="card-input-group">
+      <label htmlFor={name}>
+        {label} {props.required && <span className="req">*</span>}
+      </label>
+      <select
+        id={name}
+        name={name}
+        value={form[name]}
+        onChange={handleChange}
+        className="matrimony-select"
+        {...props}
+      >
+        <option value="">-- Select --</option>
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  return (
+    <>
+      <style>{createProfileStyles}</style>
+
+      <div className="cp-layout">
+        {/* Top bar with Branding */}
+        <header className="cp-nav">
+          <div className="nav-container">
+            <Link to="/" className="brand-logo">
+              <svg className="logo-rings" viewBox="0 0 44 28" aria-hidden="true">
+                <circle cx="15" cy="15" r="10" />
+                <circle cx="29" cy="15" r="10" />
+                <path d="M22 2 L25 6.5 L22 11 L19 6.5 Z" />
+              </svg>
+              <span className="brand-text">
+                <span className="brand-name">
+                  Pair<b>Perfect</b>
+                </span>
+                <small className="logo-sub">Pavitra Rishtey</small>
+              </span>
+            </Link>
+
+            <Link to="/dashboard" className="back-link">
+              ← Skip to Dashboard
+            </Link>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="cp-container">
+          {/* LEFT: Complete Bio-Data Form */}
+          <div className="form-column">
+            <div className="invite-head-banner">
+              <span className="ganesh">॥ श्री गणेशाय नमः ॥</span>
+              <h2>Create Matrimonial Profile</h2>
+              <p>Fill in authentic details to create your verified bio-data</p>
+            </div>
+
+            {error && <div className="modal-error">{error}</div>}
+
+            <form onSubmit={handleSubmit} className="sections-list">
+              {/* 1. Basic Details */}
+              <div className="form-section-card">
+                <div className="sec-title">
+                  <span className="sec-icon">👤</span> Basic Details
+                </div>
+                <div className="fields-grid">
+                  <Input label="Full Name" name="fullName" placeholder="e.g. Pooja Sharma" required />
+                  <Select label="Gender" name="gender" options={["Female", "Male", "Other"]} required />
+                  <Input label="Date of Birth" name="dob" type="date" required />
+                  <Select label="Marital Status" name="maritalStatus" options={["Never Married", "Divorced", "Widowed", "Awaiting Divorce"]} />
+                  <Input label="Height (in cm)" name="height" type="number" placeholder="e.g. 165" />
+                  <Input label="Phone Number" name="phone" placeholder="+91 9876543210" required />
+                </div>
+              </div>
+
+              {/* 2. Religion & Background */}
+              <div className="form-section-card">
+                <div className="sec-title">
+                  <span className="sec-icon">🪔</span> Religion & Community
+                </div>
+                <div className="fields-grid">
+                  <Select label="Religion" name="religion" options={["Hindu", "Sikh", "Muslim", "Christian", "Jain", "Buddhist", "Parsi", "Other"]} required />
+                  <Input label="Caste / Community" name="caste" placeholder="e.g. Brahmin, Rajput, Arora..." />
+                  <Input label="Mother Tongue" name="motherTongue" placeholder="e.g. Hindi, Punjabi, Bengali..." />
+                  <Select label="Manglik Status" name="manglik" options={["Don't Know", "Yes", "No", "Anshik Manglik"]} />
+                </div>
+              </div>
+
+              {/* 3. Education & Career */}
+              <div className="form-section-card">
+                <div className="sec-title">
+                  <span className="sec-icon">🎓</span> Education & Career
+                </div>
+                <div className="fields-grid">
+                  <Input label="Highest Education" name="education" placeholder="e.g. MBA in Finance, B.Tech CS" required />
+                  <Input label="Occupation / Designation" name="occupation" placeholder="e.g. Senior Software Engineer" />
+                  <Input label="Annual Income" name="annualIncome" placeholder="e.g. 15 LPA or $90,000" />
+                </div>
+              </div>
+
+              {/* 4. Location Details */}
+              <div className="form-section-card">
+                <div className="sec-title">
+                  <span className="sec-icon">📍</span> Current Location
+                </div>
+                <div className="fields-grid">
+                  <Input label="City" name="city" placeholder="e.g. Mumbai, Delhi, Bengaluru" required />
+                  <Input label="State" name="state" placeholder="e.g. Maharashtra" />
+                  <Input label="Country" name="country" placeholder="India" />
+                </div>
+              </div>
+
+              {/* 5. Family Details */}
+              <div className="form-section-card">
+                <div className="sec-title">
+                  <span className="sec-icon">👨‍👩‍👧‍👦</span> Family Background
+                </div>
+                <div className="fields-grid">
+                  <Input label="Father's Name" name="fatherName" placeholder="Father's full name" />
+                  <Input label="Father's Occupation" name="fatherOccupation" placeholder="e.g. Businessman, Retired Officer" />
+                  <Input label="Mother's Name" name="motherName" placeholder="Mother's full name" />
+                  <Input label="Mother's Occupation" name="motherOccupation" placeholder="e.g. Homemaker, Teacher" />
+                  <Input label="Siblings" name="siblings" type="number" min="0" placeholder="0" />
+                  <Select label="Family Type" name="familyType" options={["Nuclear", "Joint"]} />
+                </div>
+              </div>
+
+              {/* 6. Lifestyle Habits */}
+              <div className="form-section-card">
+                <div className="sec-title">
+                  <span className="sec-icon">🥗</span> Diet & Lifestyle
+                </div>
+                <div className="fields-grid">
+                  <Select label="Dietary Preference" name="diet" options={["Vegetarian", "Non-Vegetarian", "Eggetarian", "Vegan", "Jain"]} />
+                  <Select label="Smoking" name="smoking" options={["No", "Yes", "Occasionally"]} />
+                  <Select label="Drinking" name="drinking" options={["No", "Yes", "Occasionally"]} />
+                </div>
+              </div>
+
+              {/* 7. About & Profile Photo */}
+              <div className="form-section-card">
+                <div className="sec-title">
+                  <span className="sec-icon">✨</span> About & Photo
+                </div>
+                <div className="fields-full">
+                  <div className="card-input-group">
+                    <label>Profile Photo URL</label>
+                    <input
+                      name="photoUrl"
+                      type="url"
+                      placeholder="https://images.unsplash.com/your-photo.jpg"
+                      value={form.photoUrl}
+                      onChange={handleChange}
+                      className="matrimony-input"
+                    />
+                    <small className="field-hint">Paste a high quality direct photo URL to preview it live.</small>
+                  </div>
+
+                  <div className="card-input-group">
+                    <label>About Me (Bio)</label>
+                    <textarea
+                      name="about"
+                      rows={3}
+                      placeholder="Share a short summary about your personality, hobbies and values..."
+                      value={form.about}
+                      onChange={handleChange}
+                      className="matrimony-textarea"
+                    />
+                  </div>
+
+                  <div className="card-input-group">
+                    <label>Partner Expectations</label>
+                    <textarea
+                      name="partnerPreference"
+                      rows={3}
+                      placeholder="What kind of life partner and family values are you seeking?..."
+                      value={form.partnerPreference}
+                      onChange={handleChange}
+                      className="matrimony-textarea"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" className="btn-register-cta full-btn" disabled={loading}>
+                {loading ? "Publishing your bio-data..." : "Publish & Complete Matrimony Profile ✦"}
+              </button>
+            </form>
+          </div>
+
+          {/* RIGHT: Live Preview of the exact "Featured Verified Profile" Card */}
+          <aside className="preview-column">
+            <div className="sticky-preview-wrap">
+              <div className="preview-badge-header">
+                <span>✦ Live Featured Card Preview</span>
+                <small>This is how other members will see your profile</small>
+              </div>
+
+              {/* EXACT SAME PROFILE CARD DESIGN & LOGIC FROM HOME */}
+              <article className="profile-card preview-card">
+                <div className="arch-wrap">
+                  <div className="arch">
+                    <div className="arch-in">
+                      <Photo
+                        src={form.photoUrl}
+                        name={form.fullName || "Your Name"}
+                      />
+                    </div>
+                  </div>
+
+                  <span className="badge-new">New</span>
+
+                  <span className={`role-tag ${form.gender?.toLowerCase() === "male" ? "male" : "female"}`}>
+                    {form.gender === "Male" ? "Groom" : "Bride"}
+                  </span>
+                  <span className="seal">✓ Verified</span>
+                </div>
+
+                <div className="card-details">
+                  <div className="name-row">
+                    <h4>{form.fullName || "Your Full Name"}</h4>
+                    <span className="age-pill">
+                      {calculateAge(form.dob)} yrs
+                    </span>
+                  </div>
+
+                  <p className="vitals">
+                    {form.height ? `${form.height} cm` : "Height N/A"},{" "}
+                    {form.religion || "Religion"}{" "}
+                    {form.caste ? `(${form.caste})` : ""}
+                  </p>
+
+                  <div className="meta-lines">
+                    <div>
+                      <span className="meta-icon">🎓</span>
+                      {form.education || "Education details"}
+                    </div>
+                    <div>
+                      <span className="meta-icon">💼</span>
+                      {form.occupation || "Profession"},{" "}
+                      <strong>{form.annualIncome || "Package"}</strong>
+                    </div>
+                    <div>
+                      <span className="meta-icon">📍</span>
+                      {form.city || "City"}
+                      {form.state ? `, ${form.state}` : ""}
+                    </div>
+                  </div>
+
+                  <div className="card-btns">
+                    <button type="button" className="btn-interest" disabled>
+                      Connect now
+                    </button>
+                    <button type="button" className="btn-bio" disabled>
+                      View bio
+                    </button>
+                  </div>
+                </div>
+              </article>
+
+              <div className="preview-tip-box">
+                <span className="tip-star">✦</span>
+                <p>
+                  Tip: Profiles with clear, front-facing portrait photos and complete education information receive up to <strong>4x more match requests</strong>.
+                </p>
+              </div>
+            </div>
+          </aside>
+        </main>
+      </div>
+    </>
+  );
+}
+
+const createProfileStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Yatra+One&display=swap');
+
+  .cp-layout {
+    --night: #1f0210;
+    --wine: #4a0418;
+    --maroon: #7c0a2b;
+    --gold: #d4a72c;
+    --gold-2: #f2cf6b;
+    --gold-line: rgba(212, 167, 44, 0.35);
+    --ivory: #fff7e6;
+    --ivory-2: #f6e8c8;
+    --ink: #2b1118;
+    --ink-soft: #6b525a;
+    --display: 'Yatra One', 'Tiro Devanagari Hindi', Georgia, serif;
+    --body: 'Hind', 'Segoe UI', system-ui, sans-serif;
+
+    min-height: 100vh;
+    color: var(--ivory);
+    font-family: var(--body);
+    background:
+      radial-gradient(circle at 1px 1px, rgba(212, 167, 44, 0.12) 1px, transparent 0) 0 0 / 26px 26px,
+      var(--night);
+    padding-bottom: 60px;
+    box-sizing: border-box;
+  }
+
+  .cp-layout *, .cp-layout *::before, .cp-layout *::after { box-sizing: border-box; }
+  .cp-layout button, .cp-layout input, .cp-layout select, .cp-layout textarea { font-family: var(--body); }
+
+  /* Navbar */
+  .cp-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(31, 2, 16, 0.9);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--gold-line);
+  }
+  .nav-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ivory); }
+  .logo-rings { width: 44px; height: 28px; fill: none; stroke: var(--gold); stroke-width: 1.6; }
+  .logo-rings path { fill: var(--gold-2); stroke: none; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1; }
+  .brand-name { font-family: var(--display); font-size: 25px; }
+  .brand-name b { font-weight: 400; color: var(--gold-2); }
+  .logo-sub { font-size: 11.5px; color: var(--gold); margin-top: 3px; letter-spacing: 0.5px; }
+
+  .back-link {
+    color: var(--gold-2);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border: 1px solid var(--gold-line);
+    border-radius: 999px;
+    transition: background 0.2s, color 0.2s;
+  }
+  .back-link:hover { background: var(--gold); color: #3a0618; }
+
+  /* Main Container (Two Columns) */
+  .cp-container {
+    max-width: 1220px;
+    margin: 36px auto 0;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 36px;
+    align-items: flex-start;
+  }
+
+  /* Form Column */
+  .invite-head-banner {
+    background: linear-gradient(160deg, var(--maroon), var(--wine));
+    border: 2px solid var(--gold);
+    border-radius: 20px 20px 10px 10px;
+    padding: 26px 24px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    margin-bottom: 24px;
+  }
+  .ganesh { display: block; font-family: var(--display); font-size: 16px; color: var(--gold-2); margin-bottom: 6px; }
+  .invite-head-banner h2 { font-family: var(--display); font-weight: 400; font-size: 30px; margin: 0 0 6px; color: var(--ivory); }
+  .invite-head-banner p { margin: 0; font-size: 15px; color: rgba(255, 247, 230, 0.85); }
+
+  .modal-error {
+    background: #fde8e8;
+    border: 1px solid #f8b4b4;
+    color: #9b1c1c;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .sections-list { display: flex; flex-direction: column; gap: 22px; }
+
+  .form-section-card {
+    background: var(--ivory);
+    color: var(--ink);
+    border: 1.5px solid var(--gold);
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  }
+  .sec-title {
+    font-family: var(--display);
+    font-size: 20px;
+    color: var(--maroon);
+    border-bottom: 1.5px dashed #dcc58f;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sec-icon { font-size: 18px; }
+
+  .fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .fields-full { display: flex; flex-direction: column; gap: 16px; }
+
+  .card-input-group { display: flex; flex-direction: column; gap: 6px; }
+  .card-input-group label { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .req { color: #c81e1e; font-weight: bold; }
+
+  .matrimony-input, .matrimony-select, .matrimony-textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1.5px solid #dcc58f;
+    border-radius: 10px;
+    background: #fffdf7;
+    color: var(--ink);
+    font-size: 14.5px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .matrimony-select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 36px;
+    background: #fffdf7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%237c0a2b' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center / 12px;
+    cursor: pointer;
+  }
+  .matrimony-input:focus, .matrimony-select:focus, .matrimony-textarea:focus {
+    border-color: var(--maroon);
+    box-shadow: 0 0 0 2px rgba(124, 10, 43, 0.15);
+  }
+  .matrimony-textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+  .field-hint { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+  .full-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 17px;
+    margin-top: 10px;
+    border-radius: 12px;
+  }
+  .btn-register-cta {
+    background: linear-gradient(135deg, var(--gold-2), var(--gold));
+    color: #3a0618;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(212, 167, 44, 0.35);
+    transition: filter 0.2s, transform 0.1s;
+  }
+  .btn-register-cta:hover { filter: brightness(1.08); }
+  .btn-register-cta:active { transform: translateY(1px); }
+  .btn-register-cta:disabled { opacity: 0.65; cursor: wait; }
+
+  /* Sticky Preview Column */
+  .preview-column { position: sticky; top: 80px; }
+  .sticky-preview-wrap { display: flex; flex-direction: column; gap: 14px; }
+  .preview-badge-header {
+    background: rgba(255, 247, 230, 0.08);
+    border: 1px solid var(--gold-line);
+    border-radius: 12px;
+    padding: 10px 14px;
+    text-align: center;
+  }
+  .preview-badge-header span { display: block; font-weight: 600; color: var(--gold-2); font-size: 14px; }
+  .preview-badge-header small { color: rgba(255, 247, 230, 0.7); font-size: 12px; }
+
+  /* Exact Profile Card Match from Home.jsx */
+  .profile-card {
+    background: var(--ivory);
+    color: var(--ink);
+    border: 1px solid var(--gold);
+    outline: 1px solid rgba(212, 167, 44, 0.5);
+    outline-offset: -7px;
+    border-radius: 20px;
+    padding: 16px 16px 18px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+  }
+  .arch-wrap { position: relative; margin-bottom: 22px; }
+  .arch {
+    height: 270px;
+    padding: 5px;
+    border: 2px solid var(--gold);
+    border-radius: 999px 999px 10px 10px;
+    background: linear-gradient(#fff, var(--ivory-2));
+  }
+  .arch-in { height: 100%; border-radius: 999px 999px 6px 6px; overflow: hidden; background: #e9d5ad; }
+  .arch-in img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-fallback {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(160deg, var(--maroon), var(--wine));
+    color: var(--gold-2);
+    font-family: var(--display);
+    font-size: 64px;
+  }
+  .role-tag {
+    position: absolute;
+    left: 12px;
+    bottom: -12px;
+    padding: 3px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--gold);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ivory);
+    background: var(--maroon);
+  }
+  .role-tag.male { background: #1d3a73; }
+  .seal {
+    position: absolute;
+    right: 12px;
+    bottom: -12px;
+    padding: 3px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--gold-2);
+    background: #0f7a55;
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .badge-new {
+    position: absolute;
+    top: 8px;
+    right: 0;
+    z-index: 2;
+    padding: 3px 11px;
+    border-radius: 999px;
+    background: var(--gold);
+    color: #3a0618;
+    font-size: 12.5px;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .name-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .card-details h4 { font-family: var(--display); font-weight: 400; font-size: 22px; margin: 0; color: var(--maroon); }
+  .age-pill { font-size: 13px; font-weight: 600; color: var(--maroon); background: #fffdf5; border: 1px solid #dcc58f; border-radius: 999px; padding: 2px 11px; white-space: nowrap; }
+  .vitals { margin: 4px 0 10px; font-size: 14.5px; color: var(--ink-soft); }
+  .meta-lines { display: grid; gap: 5px; padding-top: 10px; margin-bottom: 14px; border-top: 1px dashed #d9c18a; font-size: 14.5px; }
+  .meta-icon { margin-right: 7px; }
+  .card-btns { display: flex; gap: 8px; }
+  .btn-interest {
+    flex: 1;
+    background: var(--maroon);
+    color: var(--ivory);
+    border: 1px solid var(--maroon);
+    padding: 9px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: not-allowed;
+    opacity: 0.8;
+  }
+  .btn-bio {
+    background: transparent;
+    color: var(--maroon);
+    border: 1.5px solid var(--gold);
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: not-allowed;
+    opacity: 0.8;
+  }
+
+  .preview-tip-box {
+    background: rgba(255, 247, 230, 0.05);
+    border: 1px dashed var(--gold-line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    gap: 10px;
+    font-size: 13px;
+    color: rgba(255, 247, 230, 0.82);
+    line-height: 1.5;
+  }
+  .tip-star { color: var(--gold-2); font-size: 15px; }
+
+  /* Responsive Adjustments */
+  @media (max-width: 960px) {
+    .cp-container { grid-template-columns: 1fr; }
+    .preview-column { position: static; max-width: 360px; margin: 0 auto; order: -1; }
+  }
+`;

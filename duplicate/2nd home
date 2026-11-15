@@ -1,0 +1,1823 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
+
+// Rich Dummy Profiles (Male & Female)
+const ALL_DUMMY_PROFILES = [
+    {
+        _id: "demo1",
+        fullName: "Pooja Sharma",
+        gender: "Female",
+        dob: "2001-05-14",
+        height: 165,
+        religion: "Hindu",
+        caste: "Brahmin",
+        city: "Mumbai",
+        state: "Maharashtra",
+        education: "MBA in Finance",
+        occupation: "Financial Analyst",
+        annualIncome: "12 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Ambitious, modern yet rooted in cultural values.",
+        photoUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=80",
+        createdAt: new Date().toISOString()
+    },
+    {
+        _id: "demo2",
+        fullName: "Neha Verma",
+        gender: "Female",
+        dob: "1999-11-20",
+        height: 162,
+        religion: "Hindu",
+        caste: "Kshatriya",
+        city: "Delhi",
+        state: "Delhi",
+        education: "B.Tech in CS",
+        occupation: "Software Engineer",
+        annualIncome: "18 LPA",
+        maritalStatus: "Never Married",
+        diet: "Non-Vegetarian",
+        about: "Tech enthusiast who loves coffee, painting, and traveling.",
+        photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo3",
+        fullName: "Aman Kapoor",
+        gender: "Male",
+        dob: "1998-04-12",
+        height: 178,
+        religion: "Hindu",
+        caste: "Punjabi",
+        city: "Bangalore",
+        state: "Karnataka",
+        education: "M.Tech",
+        occupation: "Product Manager",
+        annualIncome: "24 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Fitness lover, avid reader, looking for a progressive partner.",
+        photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
+        createdAt: new Date().toISOString()
+    },
+    {
+        _id: "demo4",
+        fullName: "Rohan Kulkarni",
+        gender: "Male",
+        dob: "1997-08-05",
+        height: 182,
+        religion: "Hindu",
+        caste: "Maratha",
+        city: "Pune",
+        state: "Maharashtra",
+        education: "MBBS, MD",
+        occupation: "Doctor",
+        annualIncome: "20 LPA",
+        maritalStatus: "Never Married",
+        diet: "Non-Vegetarian",
+        about: "Dedicated healthcare professional who enjoys photography.",
+        photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo5",
+        fullName: "Simran Kaur",
+        gender: "Female",
+        dob: "2000-02-18",
+        height: 168,
+        religion: "Sikh",
+        caste: "Arora",
+        city: "Chandigarh",
+        state: "Punjab",
+        education: "Chartered Accountant",
+        occupation: "Senior Auditor",
+        annualIncome: "15 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Positive, friendly and family-oriented person.",
+        photoUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo6",
+        fullName: "Vikram Rathore",
+        gender: "Male",
+        dob: "1996-09-30",
+        height: 180,
+        religion: "Hindu",
+        caste: "Rajput",
+        city: "Jaipur",
+        state: "Rajasthan",
+        education: "B.Arch",
+        occupation: "Architect & Interior Designer",
+        annualIncome: "16 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Passionate about sustainable architecture and arts.",
+        photoUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400&auto=format&fit=crop&q=80"
+    }
+];
+
+export default function Home() {
+    const { user, logout, saveAuth } = useAuth();
+    const navigate = useNavigate();
+
+    const [myProfile, setMyProfile] = useState(null);
+    const [profiles, setProfiles] = useState(ALL_DUMMY_PROFILES);
+
+    // Search & Category Filters
+    const [search, setSearch] = useState("");
+    const [genderFilter, setGenderFilter] = useState("All");
+    const [religionFilter, setReligionFilter] = useState("All");
+
+    // Login Modal State
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+    const [loginError, setLoginError] = useState("");
+    const [loggingIn, setLoggingIn] = useState(false);
+
+    // Selected Profile for Bio-Data Modal
+    const [selectedProfile, setSelectedProfile] = useState(null);
+    const [connectedIds, setConnectedIds] = useState([]);
+
+    // Quick Hero Register State
+    const [heroProfileFor, setHeroProfileFor] = useState("Myself");
+
+    // Active Vibe pill animation state
+    const [activeVibe, setActiveVibe] = useState("Ambition 💼");
+
+    // Logged-in user profile fetch
+    useEffect(() => {
+        if (user) {
+            api
+                .get("/profile/me")
+                .then((res) => setMyProfile(res.data))
+                .catch(() => { });
+        } else {
+            setMyProfile(null);
+        }
+    }, [user]);
+
+    // Vibe cycle animation
+    useEffect(() => {
+        const vibes = ["Ambition 💼", "Travel & Coffee ☕✈️", "Family Roots 🏡", "Fitness 🏋️‍♂️", "Art & Music 🎨"];
+        let idx = 0;
+        const interval = setInterval(() => {
+            idx = (idx + 1) % vibes.length;
+            setActiveVibe(vibes[idx]);
+        }, 2400);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Login Modal Handler
+    const handleLoginSubmit = async (e) => {
+        e.preventDefault();
+        setLoginError("");
+        setLoggingIn(true);
+        try {
+            const { data } = await api.post("/auth/login", loginForm);
+            saveAuth(data);
+            setShowLoginModal(false);
+            setLoginForm({ email: "", password: "" });
+            if (!data.user.profileCreated) {
+                navigate("/create-profile");
+            }
+        } catch (err) {
+            setLoginError(err.response?.data?.message || "Invalid email or password");
+        } finally {
+            setLoggingIn(false);
+        }
+    };
+
+    const calculateAge = (dob) => {
+        if (!dob) return 24;
+        return new Date().getFullYear() - new Date(dob).getFullYear();
+    };
+
+    const isNewUser = (createdAt) => {
+        if (!createdAt) return false;
+        const createdDate = new Date(createdAt);
+        const today = new Date();
+        const diffDays = (today - createdDate) / (1000 * 60 * 60 * 24);
+        return diffDays <= 7;
+    };
+
+    // GENDER FILTER LOGIC
+    const myGender = myProfile?.gender?.toLowerCase() || "";
+    const targetGender = myGender === "male" ? "female" : myGender === "female" ? "male" : null;
+
+    const filteredMatches = profiles.filter((p) => {
+        if (myProfile?._id && p._id === myProfile._id) return false;
+
+        if (user && targetGender) {
+            if (p.gender?.toLowerCase() !== targetGender) return false;
+        } else {
+            if (genderFilter !== "All" && p.gender !== genderFilter) return false;
+        }
+
+        const matchesSearch =
+            search === "" ||
+            p.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+            p.city?.toLowerCase().includes(search.toLowerCase()) ||
+            p.occupation?.toLowerCase().includes(search.toLowerCase());
+
+        const matchesReligion = religionFilter === "All" || p.religion === religionFilter;
+
+        return matchesSearch && matchesReligion;
+    });
+
+    const toggleConnect = (id) => {
+        if (!user) {
+            setShowLoginModal(true);
+            return;
+        }
+        setConnectedIds((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+        );
+    };
+
+    return (
+        <>
+            <style>{homeStyles}</style>
+            <div className="home-layout">
+
+                {/* ================= 1. TRADITIONAL COMMUNTIES TICKER STRIP ================= */}
+                <div className="top-community-bar">
+                    <div className="community-list">
+                        <span className="live-pill">LIVE MATCHES</span>
+                        <span>Hindi</span> • <span>Punjabi</span> • <span>Bengali</span> • <span>Gujarati</span> • 
+                        <span>Marathi</span> • <span>Marwadi</span> • <span>Kannada</span> • <span>Tamil</span> • 
+                        <span>Telugu</span> • <span>Malayalam</span> • <span>Sindhi</span> • <span>Oriya</span>
+                    </div>
+                </div>
+
+                {/* ================= 2. MODERN NAVBAR ================= */}
+                <header className="navbar">
+                    <div className="nav-container">
+                        <Link to="/" className="brand-logo">
+                            <span className="logo-sparkle">✨</span>
+                            <span className="brand-title">Pair<span className="golden-glow-text">Perfect</span></span>
+                            <span className="genz-pill">v2.0</span>
+                        </Link>
+
+                        <div className="nav-search">
+                            <span className="search-icon">⚡</span>
+                            <input
+                                type="text"
+                                placeholder="Search by vibe, city, tech job, caste..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="nav-actions">
+                            {user ? (
+                                <>
+                                    <Link to="/dashboard" className="nav-user-badge">
+                                        <span className="online-dot"></span> Namaste, {user.name}
+                                    </Link>
+                                    <button onClick={logout} className="btn-logout">
+                                        Logout
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={() => setShowLoginModal(true)} className="btn-nav-login">
+                                        Login
+                                    </button>
+                                    <Link to="/register" className="btn-nav-register">
+                                        Join Free ✨
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </header>
+
+                {/* ================= 3. GEN-Z ANIMATED HERO SECTION ================= */}
+                <section className="hero-section">
+                    {/* Floating ambient aesthetic glow balls */}
+                    <div className="ambient-glow glow-maroon"></div>
+                    <div className="ambient-glow glow-gold"></div>
+
+                    <div className="hero-container">
+                        
+                        {/* LEFT: GEN-Z ANIMATED HERO (Replaces the boring static image part) */}
+                        <div className="hero-left">
+                            <div className="genz-top-badge">
+                                <span className="shimmer-fire">🔥</span>
+                                <span>Redefining Modern Indian Matchmaking</span>
+                                <span className="badge-highlight">Gen-Z Verified</span>
+                            </div>
+
+                            <h1 className="hero-heading">
+                                Less Swiping. <br />
+                                Real Chemistry. <br />
+                                <span className="animated-gradient-text">Forever Together.</span>
+                            </h1>
+
+                            <p className="hero-subtext">
+                                Skip the awkward conversations. Connect with cultured, ambitious, and verified brides & grooms who match your lifestyle, values, and career goals.
+                            </p>
+
+                            {/* Dynamic Live Vibe Matcher Tag */}
+                            <div className="vibe-ticker-box">
+                                <span className="vibe-title">Current Compatibility Focus:</span>
+                                <span className="vibe-tag-animated">{activeVibe}</span>
+                            </div>
+
+                            {/* Animated Micro Floating Cards */}
+                            <div className="hero-floating-badges-row">
+                                <div className="float-card glass-badge-1">
+                                    <div className="badge-avatar-stack">
+                                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="" />
+                                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" alt="" />
+                                    </div>
+                                    <div className="badge-text">
+                                        <strong>98.4% Match Rate</strong>
+                                        <small>Based on Values & Career</small>
+                                    </div>
+                                </div>
+
+                                <div className="float-card glass-badge-2">
+                                    <span className="shield-icon">🛡️</span>
+                                    <div className="badge-text">
+                                        <strong>100% ID Verified</strong>
+                                        <small>Zero Creeps / No Fakes</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* RIGHT: FLOATING QUICK MATCH CARD */}
+                        <div className="hero-right">
+                            <div className="matrimony-form-card">
+                                <div className="form-card-header">
+                                    <div className="header-chip">Free & Confidential</div>
+                                    <h3>Find Your Soulmate</h3>
+                                    <p>Select your preferences to explore</p>
+                                </div>
+
+                                <div className="form-card-body">
+                                    <div className="card-input-group">
+                                        <label>I Am Creating Profile For</label>
+                                        <select 
+                                            value={heroProfileFor} 
+                                            onChange={(e) => setHeroProfileFor(e.target.value)}
+                                            className="matrimony-select"
+                                        >
+                                            <option value="Myself">Myself (Self Registered)</option>
+                                            <option value="Son">My Son</option>
+                                            <option value="Daughter">My Daughter</option>
+                                            <option value="Brother">My Brother</option>
+                                            <option value="Sister">My Sister</option>
+                                            <option value="Friend">Relative / Friend</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="card-input-group">
+                                        <label>Looking For</label>
+                                        <select 
+                                            value={genderFilter} 
+                                            onChange={(e) => setGenderFilter(e.target.value)}
+                                            className="matrimony-select"
+                                        >
+                                            <option value="All">All Matches (Brides & Grooms)</option>
+                                            <option value="Female">Bride (Female)</option>
+                                            <option value="Male">Groom (Male)</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="card-input-group">
+                                        <label>Community & Faith</label>
+                                        <select 
+                                            value={religionFilter} 
+                                            onChange={(e) => setReligionFilter(e.target.value)}
+                                            className="matrimony-select"
+                                        >
+                                            <option value="All">All Religions</option>
+                                            <option value="Hindu">Hindu</option>
+                                            <option value="Sikh">Sikh</option>
+                                            <option value="Muslim">Muslim</option>
+                                            <option value="Christian">Christian</option>
+                                        </select>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => {
+                                            if (user) {
+                                                navigate("/dashboard");
+                                            } else {
+                                                navigate("/register");
+                                            }
+                                        }} 
+                                        className="btn-register-cta"
+                                    >
+                                        <span>EXPLORE MATCHES NOW</span>
+                                        <span className="arrow-pulse">➔</span>
+                                    </button>
+
+                                    <p className="card-disclaimer">
+                                        🔒 Bank-grade privacy. Your photos stay secure.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                {/* ================= 4. FILTER CONTROLS BAR ================= */}
+                <section className="filter-controls-section">
+                    <div className="filters-strip">
+                        <span className="filter-title">⚡ Instant Filter:</span>
+
+                        {!user && (
+                            <div className="filter-pill">
+                                <label>Gender:</label>
+                                <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
+                                    <option value="All">All Profiles</option>
+                                    <option value="Female">Brides</option>
+                                    <option value="Male">Grooms</option>
+                                </select>
+                            </div>
+                        )}
+
+                        <div className="filter-pill">
+                            <label>Religion:</label>
+                            <select value={religionFilter} onChange={(e) => setReligionFilter(e.target.value)}>
+                                <option value="All">All Religions</option>
+                                <option value="Hindu">Hindu</option>
+                                <option value="Sikh">Sikh</option>
+                                <option value="Muslim">Muslim</option>
+                                <option value="Christian">Christian</option>
+                            </select>
+                        </div>
+
+                        {(search || religionFilter !== "All" || genderFilter !== "All") && (
+                            <button
+                                className="btn-reset"
+                                onClick={() => {
+                                    setSearch("");
+                                    setGenderFilter("All");
+                                    setReligionFilter("All");
+                                }}
+                            >
+                                ✕ Reset Filters
+                            </button>
+                        )}
+                    </div>
+                </section>
+
+                {/* ================= 5. PROFILES GRID ================= */}
+                <main className="matches-wrapper">
+                    <div className="matches-top">
+                        <div className="section-title-box">
+                            <div className="curated-pill">🌟 Handpicked Daily</div>
+                            <h2 className="section-heading">Verified Featured Matches</h2>
+                            <p className="section-subheading">Profiles filtered for high compatibility and genuine intent</p>
+                        </div>
+                        <span className="status-tag">
+                            {user ? `✨ Looking for: ${targetGender?.toUpperCase()}` : `🔥 Showing: ${filteredMatches.length} Matches`}
+                        </span>
+                    </div>
+
+                    {filteredMatches.length === 0 ? (
+                        <div className="empty-state">
+                            <span className="empty-icon">🕊️</span>
+                            <h3>No Profiles Match Your Exact Filter</h3>
+                            <p>Try clearing your search query or selecting 'All Religions' to explore more profiles.</p>
+                        </div>
+                    ) : (
+                        <div className="profiles-grid">
+                            {filteredMatches.map((item) => {
+                                const isConnected = connectedIds.includes(item._id);
+                                return (
+                                    <div key={item._id} className="profile-card">
+                                        <div className="card-img-box">
+                                            <img src={item.photoUrl} alt={item.fullName} loading="lazy" />
+
+                                            {isNewUser(item.createdAt) && (
+                                                <span className="badge-just-joined">✨ NEW MEMBER</span>
+                                            )}
+
+                                            <span className={`gender-tag ${item.gender.toLowerCase()}`}>
+                                                {item.gender === "Female" ? "Bride" : "Groom"}
+                                            </span>
+                                            <div className="verified-corner-badge">✓ 100% ID Verified</div>
+                                        </div>
+
+                                        <div className="card-details">
+                                            <div className="name-row">
+                                                <h4>{item.fullName}</h4>
+                                                <span className="age-pill">{calculateAge(item.dob)} Yrs</span>
+                                            </div>
+
+                                            <p className="vitals">
+                                                {item.height} cm • {item.religion} ({item.caste})
+                                            </p>
+
+                                            <div className="meta-lines">
+                                                <div><span className="meta-icon">🎓</span> {item.education}</div>
+                                                <div><span className="meta-icon">💼</span> {item.occupation} • <strong>{item.annualIncome}</strong></div>
+                                                <div><span className="meta-icon">📍</span> {item.city}, {item.state}</div>
+                                            </div>
+
+                                            <div className="card-btns">
+                                                <button
+                                                    className={`btn-interest ${isConnected ? "sent" : ""}`}
+                                                    onClick={() => toggleConnect(item._id)}
+                                                >
+                                                    {isConnected ? "✓ Expressed Interest" : "Connect 💌"}
+                                                </button>
+                                                <button
+                                                    className="btn-bio"
+                                                    onClick={() => setSelectedProfile(item)}
+                                                >
+                                                    View Bio
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </main>
+
+                {/* ================= 6. NEW GEN-Z SECTION: WHY PAIRPERFECT ================= */}
+                <section className="genz-features-section">
+                    <div className="section-container">
+                        <div className="center-header">
+                            <span className="curated-pill">Built Different</span>
+                            <h2>Why Modern Couples Choose PairPerfect</h2>
+                            <p>No old-fashioned biodatas. A fresh matchmaking experience built for today's generation.</p>
+                        </div>
+
+                        <div className="features-grid">
+                            <div className="feature-card">
+                                <div className="feature-icon-box">🛡️</div>
+                                <h3>Zero Creeps & Fakes</h3>
+                                <p>Strict government ID and selfie verification ensure every single profile is authentic and marriage-minded.</p>
+                            </div>
+
+                            <div className="feature-card">
+                                <div className="feature-icon-box">⚡</div>
+                                <h3>Vibe & Lifestyle Match</h3>
+                                <p>Filter by diet, ambitions, traveling habits, and progressive mindsets before introducing to family.</p>
+                            </div>
+
+                            <div className="feature-card">
+                                <div className="feature-icon-box">🔒</div>
+                                <h3>Incognito & Privacy First</h3>
+                                <p>You choose who sees your contact details and photos. Full control in your hands at all times.</p>
+                            </div>
+
+                            <div className="feature-card">
+                                <div className="feature-icon-box">💍</div>
+                                <h3>Modern Bio-Data 2.0</h3>
+                                <p>Clean visual profiles showcasing genuine personalities, real aspirations, and authentic backgrounds.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ================= 7. NEW HOW IT WORKS SECTION ================= */}
+                <section className="how-it-works-section">
+                    <div className="section-container">
+                        <div className="center-header">
+                            <span className="curated-pill">Simple & Fast</span>
+                            <h2>Your 3-Step Journey to 'I Do'</h2>
+                            <p>From signing up to taking vows with someone truly special.</p>
+                        </div>
+
+                        <div className="steps-grid">
+                            <div className="step-card">
+                                <div className="step-number">01</div>
+                                <h4>Create Your Profile</h4>
+                                <p>Share your story, education, ambition, and partner preferences in under 2 minutes.</p>
+                            </div>
+
+                            <div className="step-card">
+                                <div className="step-number">02</div>
+                                <h4>Match With Compatible Profiles</h4>
+                                <p>Browse curated prospects handpicked according to your faith, culture, and lifestyle.</p>
+                            </div>
+
+                            <div className="step-card">
+                                <div className="step-number">03</div>
+                                <h4>Connect With Families</h4>
+                                <p>Send instant express interest, chat directly, and take the conversation forward with confidence.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ================= 8. REAL LOVE STORIES SECTION ================= */}
+                <section className="testimonials-section">
+                    <div className="section-container">
+                        <div className="center-header">
+                            <span className="curated-pill">Real Magic</span>
+                            <h2>Match Made On PairPerfect</h2>
+                            <p>Read about people who found their forever person right here.</p>
+                        </div>
+
+                        <div className="stories-grid">
+                            <div className="story-card">
+                                <div className="story-stars">⭐⭐⭐⭐⭐</div>
+                                <p className="story-quote">"Neither of us wanted traditional biodatas passed around by uncles. PairPerfect gave us the modern space to connect authentically!"</p>
+                                <div className="story-author">
+                                    <strong>Aakash & Sneha</strong>
+                                    <span>Married • Dec 2024 (Bangalore)</span>
+                                </div>
+                            </div>
+
+                            <div className="story-card highlight-story">
+                                <div className="story-stars">⭐⭐⭐⭐⭐</div>
+                                <p className="story-quote">"The verified ID badge gave my parents peace of mind, and the lifestyle filters gave me the modern partner I had always dreamed of."</p>
+                                <div className="story-author">
+                                    <strong>Kabir & Riya</strong>
+                                    <span>Engaged • Jan 2025 (Mumbai)</span>
+                                </div>
+                            </div>
+
+                            <div className="story-card">
+                                <div className="story-stars">⭐⭐⭐⭐⭐</div>
+                                <p className="story-quote">"Quick, respectful, and so aesthetic. Found my soulmate within 3 weeks of creating my account. Couldn't be happier!"</p>
+                                <div className="story-author">
+                                    <strong>Harpreet & Simran</strong>
+                                    <span>Married • Feb 2025 (Delhi)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ================= 9. LOGIN POPUP MODAL ================= */}
+                {showLoginModal && (
+                    <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
+                        <div className="login-modal-box" onClick={(e) => e.stopPropagation()}>
+                            <button className="close-btn" onClick={() => setShowLoginModal(false)}>✕</button>
+
+                            <div className="modal-title">
+                                <span className="modal-icon">🌸</span>
+                                <h2>Welcome Back</h2>
+                                <p>Sign in to your PairPerfect Account</p>
+                            </div>
+
+                            {loginError && <div className="modal-error">{loginError}</div>}
+
+                            <form onSubmit={handleLoginSubmit} className="modal-form">
+                                <div className="input-box">
+                                    <label>Registered Email Address</label>
+                                    <input
+                                        type="email"
+                                        placeholder="yourname@gmail.com"
+                                        value={loginForm.email}
+                                        onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="input-box">
+                                    <label>Password</label>
+                                    <input
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={loginForm.password}
+                                        onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <button type="submit" className="btn-modal-submit" disabled={loggingIn}>
+                                    {loggingIn ? "Connecting..." : "LOG IN NOW ➔"}
+                                </button>
+                            </form>
+
+                            <p className="modal-bottom">
+                                New to PairPerfect?{" "}
+                                <Link to="/register" onClick={() => setShowLoginModal(false)}>
+                                    Register Free
+                                </Link>
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* ================= 10. BIO-DATA DETAILS MODAL ================= */}
+                {selectedProfile && (
+                    <div className="modal-backdrop" onClick={() => setSelectedProfile(null)}>
+                        <div className="bio-modal-box" onClick={(e) => e.stopPropagation()}>
+                            <button className="close-btn" onClick={() => setSelectedProfile(null)}>✕</button>
+
+                            <div className="bio-head">
+                                <img src={selectedProfile.photoUrl} alt="" className="bio-avatar" />
+                                <div>
+                                    <div className="bio-verified-text">✓ 100% ID Verified Profile</div>
+                                    <h3>{selectedProfile.fullName}</h3>
+                                    <p>{calculateAge(selectedProfile.dob)} Years • {selectedProfile.occupation} • {selectedProfile.city}</p>
+                                </div>
+                            </div>
+
+                            <div className="bio-body">
+                                <div className="bio-desc">
+                                    <strong>About Candidate:</strong>
+                                    <p>{selectedProfile.about || "Traditional, well-cultured and looking for a compatible life companion."}</p>
+                                </div>
+
+                                <div className="bio-stats">
+                                    <div><span>Community:</span> <strong>{selectedProfile.religion} ({selectedProfile.caste})</strong></div>
+                                    <div><span>Diet Preference:</span> <strong>{selectedProfile.diet}</strong></div>
+                                    <div><span>Marital Status:</span> <strong>{selectedProfile.maritalStatus}</strong></div>
+                                    <div><span>Annual Package:</span> <strong>{selectedProfile.annualIncome}</strong></div>
+                                    <div><span>Education:</span> <strong>{selectedProfile.education}</strong></div>
+                                    <div><span>Current City:</span> <strong>{selectedProfile.city}, {selectedProfile.state}</strong></div>
+                                </div>
+                            </div>
+
+                            <button
+                                className={`btn-interest full ${connectedIds.includes(selectedProfile._id) ? "sent" : ""}`}
+                                onClick={() => toggleConnect(selectedProfile._id)}
+                            >
+                                {connectedIds.includes(selectedProfile._id) ? "✓ Request Sent Successfully" : "Send Express Interest 💌"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ================= 11. MODERN MATRIMONIAL FOOTER ================= */}
+                <footer className="matrimony-footer">
+                    <div className="footer-top">
+                        <div className="footer-brand">
+                            <span className="brand-title">Pair<span className="golden-glow-text">Perfect</span></span>
+                            <p>India’s premier matchmaking experience blending modern compatibility with sacred traditions.</p>
+                        </div>
+                        <div className="footer-links-group">
+                            <h4>Explore</h4>
+                            <span>Brides</span>
+                            <span>Grooms</span>
+                            <span>Kundali Matching</span>
+                        </div>
+                        <div className="footer-links-group">
+                            <h4>Trust & Safety</h4>
+                            <span>Verification Process</span>
+                            <span>Privacy Guidelines</span>
+                            <span>Help Center</span>
+                        </div>
+                    </div>
+                    <div className="footer-bottom">
+                        <p>© PairPerfect Matrimony — Designed for the Next Generation of Indian Couples.</p>
+                    </div>
+                </footer>
+
+            </div>
+        </>
+    );
+}
+
+const homeStyles = `
+  /* ================= ROOT PALETTE (MAROON, GOLD, IVORY WHITE) ================= */
+  :root {
+    --maroon: #7c0a2b;
+    --maroon-dark: #53051b;
+    --maroon-light: #9b193d;
+    --maroon-glow: rgba(124, 10, 43, 0.15);
+    
+    --golden: #c59b27;
+    --golden-light: #e5be54;
+    --golden-soft: #fcf7ec;
+    --golden-border: #eddab4;
+    
+    --text-primary: #1e1e1e;
+    --text-secondary: #5a5a5a;
+    --bg-page: #fdfbf8;
+  }
+
+  * { box-sizing: border-box; }
+
+  .home-layout {
+    min-height: 100vh;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* 1. TOP TICKER STRIP */
+  .top-community-bar {
+    background: #fcf8f2;
+    border-bottom: 1px solid var(--golden-border);
+    padding: 7px 16px;
+    font-size: 11px;
+    text-align: center;
+    color: #6a5745;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .live-pill {
+    background: #10b981;
+    color: white;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 9px;
+    margin-right: 12px;
+    letter-spacing: 0.5px;
+  }
+  .community-list span {
+    cursor: pointer;
+    margin: 0 4px;
+    transition: color 0.2s;
+  }
+  .community-list span:hover {
+    color: var(--maroon);
+    font-weight: 700;
+  }
+
+  /* 2. NAVBAR */
+  .navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 2px solid var(--golden-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(124, 10, 43, 0.04);
+  }
+  .nav-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    font-size: 23px;
+    font-weight: 900;
+    color: var(--maroon);
+    gap: 6px;
+  }
+  .golden-glow-text {
+    color: var(--golden);
+    text-shadow: 0 0 12px rgba(197, 155, 39, 0.25);
+  }
+  .genz-pill {
+    background: var(--golden-soft);
+    border: 1px solid var(--golden);
+    color: var(--maroon);
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 12px;
+  }
+
+  .nav-search {
+    flex: 1;
+    max-width: 440px;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .nav-search .search-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 14px;
+    color: var(--golden);
+  }
+  .nav-search input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    background: #fffdfa;
+    border: 1.5px solid var(--golden-border);
+    border-radius: 25px;
+    color: #222;
+    outline: none;
+    font-size: 13px;
+    transition: all 0.25s ease;
+  }
+  .nav-search input:focus {
+    border-color: var(--maroon);
+    box-shadow: 0 0 0 4px var(--maroon-glow);
+  }
+
+  .nav-actions { display: flex; align-items: center; gap: 12px; }
+  .btn-nav-login {
+    background: transparent;
+    color: var(--maroon);
+    border: 1.5px solid var(--maroon);
+    padding: 7px 20px;
+    border-radius: 25px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+  .btn-nav-login:hover {
+    background: var(--maroon);
+    color: #ffffff;
+    transform: translateY(-1px);
+  }
+
+  .btn-nav-register {
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-light) 100%);
+    color: white;
+    text-decoration: none;
+    padding: 8px 22px;
+    border-radius: 25px;
+    font-size: 13px;
+    font-weight: 800;
+    box-shadow: 0 4px 14px rgba(124, 10, 43, 0.25);
+    transition: 0.25s ease;
+  }
+  .btn-nav-register:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(124, 10, 43, 0.4);
+  }
+
+  .nav-user-badge {
+    color: var(--maroon);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 13px;
+    background: var(--golden-soft);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--golden-border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .online-dot {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+  }
+  .btn-logout {
+    background: #fff;
+    border: 1px solid #ffcdd2;
+    color: #d32f2f;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  /* 3. HERO SECTION (ANIMATED GEN-Z HERO) */
+  .hero-section {
+    position: relative;
+    background: radial-gradient(circle at 10% 20%, #ffffff 0%, #fbf5e8 85%);
+    border-bottom: 2px solid var(--golden-border);
+    padding: 60px 20px 50px;
+    overflow: hidden;
+  }
+
+  /* Ambient glowing orbs */
+  .ambient-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .glow-maroon {
+    width: 320px;
+    height: 320px;
+    background: rgba(124, 10, 43, 0.08);
+    top: -50px;
+    left: -50px;
+  }
+  .glow-gold {
+    width: 380px;
+    height: 380px;
+    background: rgba(197, 155, 39, 0.12);
+    bottom: -80px;
+    right: 15%;
+  }
+
+  .hero-container {
+    max-width: 1220px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+    position: relative;
+    z-index: 2;
+  }
+  .hero-left { flex: 1.25; }
+
+  /* Top Badge */
+  .genz-top-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1.5px solid var(--golden);
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--maroon);
+    box-shadow: 0 4px 15px rgba(197, 155, 39, 0.15);
+    margin-bottom: 20px;
+    animation: bounceSlow 3s ease-in-out infinite;
+  }
+  .badge-highlight {
+    background: var(--maroon);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+  }
+
+  /* Animated Hero Text */
+  .hero-heading {
+    font-size: 46px;
+    line-height: 1.15;
+    font-weight: 900;
+    color: #1a1a1a;
+    margin: 0 0 16px;
+    letter-spacing: -1px;
+  }
+  .animated-gradient-text {
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--golden) 50%, var(--maroon-light) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shineGlow 4s linear infinite;
+  }
+
+  .hero-subtext {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    max-width: 540px;
+    margin-bottom: 24px;
+  }
+
+  /* Live Vibe Matcher Box */
+  .vibe-ticker-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid var(--golden-border);
+    padding: 8px 16px;
+    border-radius: 25px;
+    margin-bottom: 28px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.03);
+  }
+  .vibe-title {
+    font-size: 12px;
+    color: #666;
+    font-weight: 600;
+  }
+  .vibe-tag-animated {
+    background: linear-gradient(135deg, var(--golden-soft), #fff9ed);
+    color: var(--maroon);
+    border: 1px solid var(--golden);
+    font-weight: 800;
+    font-size: 13px;
+    padding: 4px 12px;
+    border-radius: 15px;
+    animation: popIn 0.3s ease;
+  }
+
+  /* Floating micro glass badges */
+  .hero-floating-badges-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .float-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1.5px solid var(--golden-border);
+    padding: 10px 16px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 24px rgba(124, 10, 43, 0.08);
+    transition: transform 0.3s ease;
+  }
+  .float-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--golden);
+  }
+  .glass-badge-1 { animation: floatSlow 4s ease-in-out infinite; }
+  .glass-badge-2 { animation: floatSlow 4s ease-in-out infinite 1.5s; }
+
+  .badge-avatar-stack {
+    display: flex;
+    align-items: center;
+  }
+  .badge-avatar-stack img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ffffff;
+    margin-left: -8px;
+  }
+  .badge-avatar-stack img:first-child { margin-left: 0; }
+
+  .badge-text {
+    display: flex;
+    flex-direction: column;
+  }
+  .badge-text strong {
+    font-size: 13px;
+    color: var(--maroon);
+    font-weight: 800;
+  }
+  .badge-text small {
+    font-size: 10.5px;
+    color: #666;
+  }
+  .shield-icon {
+    font-size: 22px;
+  }
+
+  /* Right Side Hero Registration Box */
+  .hero-right {
+    flex: 0.9;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .matrimony-form-card {
+    background: #ffffff;
+    border: 2px solid var(--golden-border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 390px;
+    overflow: hidden;
+    box-shadow: 0 20px 45px rgba(124, 10, 43, 0.12);
+  }
+  .form-card-header {
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-light) 100%);
+    padding: 18px 20px;
+    color: #ffffff;
+    text-align: center;
+    border-bottom: 3px solid var(--golden);
+  }
+  .header-chip {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .form-card-header h3 {
+    margin: 2px 0 0;
+    font-size: 19px;
+    font-weight: 800;
+  }
+  .form-card-header p {
+    margin: 3px 0 0;
+    font-size: 12px;
+    color: #fce7b2;
+  }
+  .form-card-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .card-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .card-input-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #444;
+  }
+  .matrimony-select {
+    padding: 10px 12px;
+    border: 1.5px solid #d9cdb8;
+    border-radius: 10px;
+    background: #fffdf9;
+    font-size: 13.5px;
+    color: #222;
+    outline: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .matrimony-select:focus {
+    border-color: var(--maroon);
+  }
+  .btn-register-cta {
+    background: linear-gradient(135deg, #d9531e 0%, #c43e08 100%);
+    color: #ffffff;
+    border: none;
+    padding: 13px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(217, 83, 30, 0.35);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+  }
+  .btn-register-cta:hover {
+    background: linear-gradient(135deg, #b83602 0%, #9e2e01 100%);
+    transform: translateY(-2px);
+  }
+  .arrow-pulse { font-size: 16px; }
+  .card-disclaimer {
+    font-size: 10.5px;
+    color: #888;
+    text-align: center;
+    margin: 0;
+  }
+
+  /* 4. FILTER CONTROLS STRIP */
+  .filter-controls-section {
+    background: #ffffff;
+    border-bottom: 1px solid var(--golden-border);
+  }
+  .filters-strip {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .filter-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--maroon);
+  }
+  .filter-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--golden-soft);
+    border: 1px solid var(--golden-border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+  }
+  .filter-pill label { font-weight: 700; color: #5d4c38; }
+  .filter-pill select {
+    background: transparent;
+    color: var(--maroon);
+    border: none;
+    outline: none;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-reset {
+    background: #fff;
+    border: 1px solid #ccaa88;
+    color: var(--maroon);
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* 5. PROFILES GRID SECTION */
+  .matches-wrapper {
+    max-width: 1220px;
+    margin: 40px auto 60px;
+    padding: 0 20px;
+  }
+  .matches-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--golden-border);
+    padding-bottom: 16px;
+  }
+  .curated-pill {
+    display: inline-block;
+    background: var(--golden-soft);
+    border: 1px solid var(--golden);
+    color: var(--maroon);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-bottom: 6px;
+  }
+  .section-heading {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--maroon);
+    margin: 0;
+  }
+  .section-subheading {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #666;
+  }
+  .status-tag {
+    background: #ffffff;
+    border: 1.5px solid var(--golden);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--maroon);
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(197, 155, 39, 0.1);
+  }
+
+  .profiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 24px;
+  }
+  .profile-card {
+    background: #ffffff;
+    border: 1.5px solid var(--golden-border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+  }
+  .profile-card:hover {
+    transform: translateY(-6px);
+    border-color: var(--golden);
+    box-shadow: 0 16px 30px rgba(124, 10, 43, 0.12);
+  }
+  .card-img-box {
+    position: relative;
+    height: 250px;
+    background: #f0e6d6;
+  }
+  .card-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .badge-just-joined {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: linear-gradient(135deg, #d4af37, #b8860b);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .gender-tag {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .gender-tag.female { color: #b8005b; }
+  .gender-tag.male { color: #0f52ba; }
+
+  .verified-corner-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(16, 185, 129, 0.95);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  .card-details { padding: 16px; }
+  .name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-details h4 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    color: #1a1a1a;
+  }
+  .age-pill {
+    background: var(--golden-soft);
+    color: var(--maroon);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--golden-border);
+  }
+  .vitals {
+    color: var(--maroon);
+    font-weight: 700;
+    font-size: 12.5px;
+    margin: 4px 0 10px;
+  }
+  .meta-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12.5px;
+    color: #444;
+    margin-bottom: 16px;
+    background: #fdfbf7;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid #f2e7d5;
+  }
+  .card-btns { display: flex; gap: 8px; }
+  .btn-interest {
+    flex: 1;
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-light) 100%);
+    color: #ffffff;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 800;
+    font-size: 13px;
+    transition: 0.2s;
+  }
+  .btn-interest:hover {
+    background: linear-gradient(135deg, var(--maroon-dark) 0%, var(--maroon) 100%);
+  }
+  .btn-interest.sent { background: #0f8a5f; }
+  .btn-bio {
+    background: #ffffff;
+    border: 1.5px solid var(--golden);
+    color: var(--maroon);
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 800;
+    transition: 0.2s;
+  }
+  .btn-bio:hover { background: var(--golden-soft); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid var(--golden-border);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; display: inline-block; }
+
+  /* 6. GEN-Z FEATURES SECTION */
+  .genz-features-section {
+    background: #ffffff;
+    border-top: 1px solid var(--golden-border);
+    border-bottom: 1px solid var(--golden-border);
+    padding: 60px 20px;
+  }
+  .section-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .center-header {
+    text-align: center;
+    max-width: 650px;
+    margin: 0 auto 40px;
+  }
+  .center-header h2 {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--maroon);
+    margin: 8px 0;
+  }
+  .center-header p {
+    color: #666;
+    font-size: 15px;
+    margin: 0;
+  }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+  }
+  .feature-card {
+    background: var(--golden-soft);
+    border: 1.5px solid var(--golden-border);
+    padding: 26px 22px;
+    border-radius: 16px;
+    transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+  .feature-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--golden);
+  }
+  .feature-icon-box {
+    font-size: 32px;
+    margin-bottom: 14px;
+  }
+  .feature-card h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--maroon);
+  }
+  .feature-card p {
+    margin: 0;
+    font-size: 13.5px;
+    color: #555;
+    line-height: 1.5;
+  }
+
+  /* 7. HOW IT WORKS SECTION */
+  .how-it-works-section {
+    padding: 60px 20px;
+    background: #fffcf7;
+  }
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 26px;
+  }
+  .step-card {
+    background: #ffffff;
+    border: 2px dashed var(--golden-border);
+    padding: 30px 24px;
+    border-radius: 16px;
+    position: relative;
+  }
+  .step-number {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--golden);
+    margin-bottom: 8px;
+  }
+  .step-card h4 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: var(--maroon);
+  }
+  .step-card p {
+    margin: 0;
+    font-size: 13.5px;
+    color: #666;
+    line-height: 1.5;
+  }
+
+  /* 8. TESTIMONIALS SECTION */
+  .testimonials-section {
+    padding: 60px 20px;
+    background: #ffffff;
+    border-top: 1px solid var(--golden-border);
+  }
+  .stories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+  .story-card {
+    background: #fffdf9;
+    border: 1.5px solid var(--golden-border);
+    padding: 24px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .highlight-story {
+    border-color: var(--golden);
+    box-shadow: 0 10px 25px rgba(197, 155, 39, 0.15);
+    background: var(--golden-soft);
+  }
+  .story-stars { font-size: 14px; margin-bottom: 12px; }
+  .story-quote {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: #333;
+    font-style: italic;
+    margin: 0 0 16px;
+  }
+  .story-author strong {
+    display: block;
+    font-size: 15px;
+    color: var(--maroon);
+  }
+  .story-author span {
+    font-size: 12px;
+    color: #777;
+  }
+
+  /* 9. MODALS */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 5, 12, 0.65);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 20px;
+  }
+  .login-modal-box {
+    background: #ffffff;
+    border: 2px solid var(--golden-border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 400px;
+    padding: 30px 24px;
+    position: relative;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+  }
+  .close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: #f7ede2;
+    border: none;
+    color: var(--maroon);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  .modal-title { text-align: center; margin-bottom: 20px; }
+  .modal-icon { font-size: 26px; }
+  .modal-title h2 {
+    margin: 4px 0 4px;
+    font-size: 22px;
+    color: var(--maroon);
+    font-weight: 800;
+  }
+  .modal-title p { margin: 0; color: #666; font-size: 13px; }
+  .modal-error {
+    background: #fde8e8;
+    border: 1px solid #f8b4b4;
+    color: #9b1c1c;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .modal-form { display: flex; flex-direction: column; gap: 14px; }
+  .input-box { display: flex; flex-direction: column; gap: 5px; text-align: left; }
+  .input-box label { font-size: 12px; color: #444; font-weight: 700; }
+  .input-box input {
+    background: #fffdfa;
+    border: 1.5px solid #d9cdb8;
+    border-radius: 8px;
+    padding: 11px 12px;
+    color: #222;
+    font-size: 14px;
+    outline: none;
+  }
+  .input-box input:focus { border-color: var(--maroon); }
+  .btn-modal-submit {
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-light) 100%);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 6px;
+    font-size: 14px;
+  }
+  .modal-bottom { text-align: center; font-size: 13px; color: #666; margin: 16px 0 0; }
+  .modal-bottom a { color: var(--maroon); text-decoration: underline; font-weight: 700; }
+
+  /* Bio-Data Modal */
+  .bio-modal-box {
+    background: #ffffff;
+    border: 2px solid var(--golden-border);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 500px;
+    padding: 24px;
+    position: relative;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.25);
+  }
+  .bio-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #f0e2cf;
+    padding-bottom: 14px;
+  }
+  .bio-avatar {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2.5px solid var(--golden);
+  }
+  .bio-verified-text {
+    font-size: 10px;
+    font-weight: 800;
+    color: #0f8a5f;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .bio-head h3 { margin: 2px 0; font-size: 20px; color: var(--maroon); }
+  .bio-head p { margin: 0; font-size: 13px; color: #666; }
+  .bio-desc { font-size: 13px; color: #444; margin-bottom: 14px; }
+  .bio-desc strong { color: var(--maroon); }
+  .bio-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: var(--golden-soft);
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 18px;
+    border: 1px solid var(--golden-border);
+  }
+  .bio-stats span { color: #777; font-size: 12px; }
+  .bio-stats strong { color: #222; }
+  .btn-interest.full { width: 100%; padding: 12px; }
+
+  /* 11. FOOTER */
+  .matrimony-footer {
+    background: #ffffff;
+    border-top: 2px solid var(--golden-border);
+    padding: 50px 20px 25px;
+  }
+  .footer-top {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+    flex-wrap: wrap;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #eee;
+  }
+  .footer-brand { max-width: 380px; }
+  .footer-brand .brand-title { font-size: 24px; font-weight: 900; color: var(--maroon); }
+  .footer-brand p { font-size: 13px; color: #666; margin-top: 8px; line-height: 1.6; }
+  .footer-links-group h4 { margin: 0 0 12px; font-size: 14px; color: var(--maroon); }
+  .footer-links-group span { display: block; font-size: 13px; color: #555; margin-bottom: 6px; cursor: pointer; }
+  .footer-links-group span:hover { color: var(--golden); }
+  .footer-bottom {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-top: 25px;
+  }
+
+  /* KEYFRAME ANIMATIONS */
+  @keyframes floatSlow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-7px); }
+  }
+  @keyframes bounceSlow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+  @keyframes shineGlow {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+  }
+  @keyframes popIn {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* RESPONSIVE DESIGN */
+  @media(max-width: 900px) {
+    .hero-container {
+      flex-direction: column;
+      gap: 30px;
+    }
+    .hero-right {
+      width: 100%;
+      justify-content: center;
+    }
+    .matrimony-form-card { max-width: 100%; }
+    .hero-heading { font-size: 34px; }
+    .nav-search { display: none; }
+  }
+`;

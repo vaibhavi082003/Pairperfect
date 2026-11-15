@@ -1,0 +1,1934 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
+
+// Rich Dummy Profiles (Dono Male aur Female)
+const ALL_DUMMY_PROFILES = [
+    {
+        _id: "demo1",
+        fullName: "Pooja Sharma",
+        gender: "Female",
+        dob: "2001-05-14",
+        height: 165,
+        religion: "Hindu",
+        caste: "Brahmin",
+        city: "Mumbai",
+        state: "Maharashtra",
+        education: "MBA in Finance",
+        occupation: "Financial Analyst",
+        annualIncome: "12 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Ambitious, modern yet rooted in cultural values.",
+        photoUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=80",
+        createdAt: new Date().toISOString()
+    },
+    {
+        _id: "demo2",
+        fullName: "Neha Verma",
+        gender: "Female",
+        dob: "1999-11-20",
+        height: 162,
+        religion: "Hindu",
+        caste: "Kshatriya",
+        city: "Delhi",
+        state: "Delhi",
+        education: "B.Tech in CS",
+        occupation: "Software Engineer",
+        annualIncome: "18 LPA",
+        maritalStatus: "Never Married",
+        diet: "Non-Vegetarian",
+        about: "Tech enthusiast who loves coffee, painting, and traveling.",
+        photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo3",
+        fullName: "Aman Kapoor",
+        gender: "Male",
+        dob: "1998-04-12",
+        height: 178,
+        religion: "Hindu",
+        caste: "Punjabi",
+        city: "Bangalore",
+        state: "Karnataka",
+        education: "M.Tech",
+        occupation: "Product Manager",
+        annualIncome: "24 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Fitness lover, avid reader, looking for a progressive partner.",
+        photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
+        createdAt: new Date().toISOString()
+    },
+    {
+        _id: "demo4",
+        fullName: "Rohan Kulkarni",
+        gender: "Male",
+        dob: "1997-08-05",
+        height: 182,
+        religion: "Hindu",
+        caste: "Maratha",
+        city: "Pune",
+        state: "Maharashtra",
+        education: "MBBS, MD",
+        occupation: "Doctor",
+        annualIncome: "20 LPA",
+        maritalStatus: "Never Married",
+        diet: "Non-Vegetarian",
+        about: "Dedicated healthcare professional who enjoys photography.",
+        photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo5",
+        fullName: "Simran Kaur",
+        gender: "Female",
+        dob: "2000-02-18",
+        height: 168,
+        religion: "Sikh",
+        caste: "Arora",
+        city: "Chandigarh",
+        state: "Punjab",
+        education: "Chartered Accountant",
+        occupation: "Senior Auditor",
+        annualIncome: "15 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Positive, friendly and family-oriented person.",
+        photoUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo6",
+        fullName: "Vikram Rathore",
+        gender: "Male",
+        dob: "1996-09-30",
+        height: 180,
+        religion: "Hindu",
+        caste: "Rajput",
+        city: "Jaipur",
+        state: "Rajasthan",
+        education: "B.Arch",
+        occupation: "Architect & Interior Designer",
+        annualIncome: "16 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Passionate about sustainable architecture and arts.",
+        photoUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400&auto=format&fit=crop&q=80"
+    }
+];
+
+export default function Home() {
+    const { user, logout, saveAuth } = useAuth();
+    const navigate = useNavigate();
+
+    const [myProfile, setMyProfile] = useState(null);
+    const [profiles, setProfiles] = useState(ALL_DUMMY_PROFILES);
+
+    // Search & Category Filters
+    const [search, setSearch] = useState("");
+    const [genderFilter, setGenderFilter] = useState("All");
+    const [religionFilter, setReligionFilter] = useState("All");
+
+    // Login Modal State
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+    const [loginError, setLoginError] = useState("");
+    const [loggingIn, setLoggingIn] = useState(false);
+
+    // Selected Profile for Bio-Data Modal
+    const [selectedProfile, setSelectedProfile] = useState(null);
+    const [connectedIds, setConnectedIds] = useState([]);
+
+    // Quick Hero Register State
+    const [heroProfileFor, setHeroProfileFor] = useState("Myself");
+
+    // Logged-in user profile fetch
+    useEffect(() => {
+        if (user) {
+            api
+                .get("/profile/me")
+                .then((res) => setMyProfile(res.data))
+                .catch(() => { });
+        } else {
+            setMyProfile(null);
+        }
+    }, [user]);
+
+    // Login Modal Handler
+    const handleLoginSubmit = async (e) => {
+        e.preventDefault();
+        setLoginError("");
+        setLoggingIn(true);
+        try {
+            const { data } = await api.post("/auth/login", loginForm);
+            saveAuth(data);
+            setShowLoginModal(false);
+            setLoginForm({ email: "", password: "" });
+            if (!data.user.profileCreated) {
+                navigate("/create-profile");
+            }
+        } catch (err) {
+            setLoginError(err.response?.data?.message || "Invalid email or password");
+        } finally {
+            setLoggingIn(false);
+        }
+    };
+
+    const calculateAge = (dob) => {
+        if (!dob) return 24;
+        return new Date().getFullYear() - new Date(dob).getFullYear();
+    };
+
+    const isNewUser = (createdAt) => {
+        if (!createdAt) return false;
+        const createdDate = new Date(createdAt);
+        const today = new Date();
+        const diffDays = (today - createdDate) / (1000 * 60 * 60 * 24);
+        return diffDays <= 7;
+    };
+
+    // GENDER FILTER LOGIC
+    const myGender = myProfile?.gender?.toLowerCase() || "";
+    const targetGender = myGender === "male" ? "female" : myGender === "female" ? "male" : null;
+
+    const filteredMatches = profiles.filter((p) => {
+        if (myProfile?._id && p._id === myProfile._id) return false;
+
+        if (user && targetGender) {
+            if (p.gender?.toLowerCase() !== targetGender) return false;
+        } else {
+            if (genderFilter !== "All" && p.gender !== genderFilter) return false;
+        }
+
+        const matchesSearch =
+            search === "" ||
+            p.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+            p.city?.toLowerCase().includes(search.toLowerCase()) ||
+            p.occupation?.toLowerCase().includes(search.toLowerCase());
+
+        const matchesReligion = religionFilter === "All" || p.religion === religionFilter;
+
+        return matchesSearch && matchesReligion;
+    });
+
+    const toggleConnect = (id) => {
+        if (!user) {
+            setShowLoginModal(true);
+            return;
+        }
+        setConnectedIds((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+        );
+    };
+
+    return (
+        <>
+            <style>{homeStyles}</style>
+            <div className="home-layout">
+
+                {/* ================= 1. TRADITIONAL TOP TICKER ================= */}
+                <div className="royal-ticker-bar">
+                    <div className="ticker-inner">
+                        <span className="live-sparkle-pill">✨ CELEBRATING SOULMATES</span>
+                        <span>Hindi</span> • <span>Punjabi</span> • <span>Bengali</span> • <span>Gujarati</span> • 
+                        <span>Marathi</span> • <span>Marwadi</span> • <span>Kannada</span> • <span>Tamil</span> • 
+                        <span>Telugu</span> • <span>Malayalam</span> • <span>Sindhi</span> • <span>Oriya</span>
+                    </div>
+                </div>
+
+                {/* ================= 2. LUXURY NAVBAR ================= */}
+                <header className="navbar">
+                    <div className="nav-container">
+                        <Link to="/" className="brand-logo">
+                            <span className="logo-mandala">⚜️</span>
+                            <div className="logo-title-wrap">
+                                <span className="brand-title">PAIR<span className="gold-text">PERFECT</span></span>
+                                <small className="brand-tag">ROYAL SHUBH VIVAH</small>
+                            </div>
+                        </Link>
+
+                        <div className="nav-search">
+                            <span className="search-icon">🔍</span>
+                            <input
+                                type="text"
+                                placeholder="Search by name, profession, city, gotra..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="nav-actions">
+                            {user ? (
+                                <>
+                                    <Link to="/dashboard" className="nav-user-badge">
+                                        <span className="badge-crown">👑</span> Namaste, {user.name}
+                                    </Link>
+                                    <button onClick={logout} className="btn-logout">
+                                        Logout
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={() => setShowLoginModal(true)} className="btn-nav-login">
+                                        Login
+                                    </button>
+                                    <Link to="/register" className="btn-nav-register">
+                                        Register Free 💍
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </header>
+
+                {/* ================= 3. GLOSSY HERO WITH BRIDE & GROOM APPROACHING ANIMATION ================= */}
+                <section className="hero-luxury-stage">
+                    {/* Background Velvet Atmosphere & Golden Bokeh */}
+                    <div className="bg-glamour-mesh"></div>
+                    <div className="floating-sparkle spark-1">✨</div>
+                    <div className="floating-sparkle spark-2">🌸</div>
+                    <div className="floating-sparkle spark-3">💫</div>
+                    <div className="floating-sparkle spark-4">✨</div>
+
+                    <div className="hero-container">
+
+                        {/* LEFT: THE ANIMATED BRIDE & GROOM CONVERGENCE STAGE */}
+                        <div className="hero-animation-theater">
+                            <div className="royal-badge-pill">
+                                <span>👑 #1 TRUSTED ROYAL MATRIMONY</span>
+                            </div>
+
+                            <h1 className="hero-royal-headline">
+                                Where Two Destinies <br />
+                                <span className="gold-liquid-gradient">Glide Into Forever</span>
+                            </h1>
+
+                            <p className="hero-royal-caption">
+                                Experience India's most enchanting matchmaking portal. Verified brides and grooms from noble families stepping closer to their dream life partner.
+                            </p>
+
+                            {/* 🔥 THE LIVE ANIMATION: GROOM & BRIDE COMING CLOSER */}
+                            <div className="convergence-stage-box">
+                                <div className="stage-glare"></div>
+                                
+                                {/* Groom Animated Card */}
+                                <div className="avatar-approach-card groom-card">
+                                    <div className="card-avatar-lens">
+                                        <img 
+                                            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80" 
+                                            alt="Groom" 
+                                        />
+                                        <span className="card-mini-label">Royal Groom</span>
+                                    </div>
+                                    <div className="avatar-info-pill">
+                                        <strong>Aman, 27</strong>
+                                        <small>Product Lead • Blr</small>
+                                    </div>
+                                </div>
+
+                                {/* Center Destiny Pulse Connector */}
+                                <div className="convergence-destiny-core">
+                                    <div className="cosmic-pulse-ring ring-1"></div>
+                                    <div className="cosmic-pulse-ring ring-2"></div>
+                                    <div className="mandala-center-orb">
+                                        <span className="mandala-icon">💍</span>
+                                    </div>
+                                    <div className="match-percent-pill">
+                                        ❤️ 36/36 GUN MATCH
+                                    </div>
+                                </div>
+
+                                {/* Bride Animated Card */}
+                                <div className="avatar-approach-card bride-card">
+                                    <div className="card-avatar-lens">
+                                        <img 
+                                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80" 
+                                            alt="Bride" 
+                                        />
+                                        <span className="card-mini-label">Royal Bride</span>
+                                    </div>
+                                    <div className="avatar-info-pill">
+                                        <strong>Neha, 25</strong>
+                                        <small>Tech Architect • Del</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Trust counters banner */}
+                            <div className="hero-trust-indicators">
+                                <div className="trust-indicator-item">
+                                    <span className="trust-num">100%</span>
+                                    <span className="trust-txt">Verified Photos & IDs</span>
+                                </div>
+                                <div className="trust-pipe"></div>
+                                <div className="trust-indicator-item">
+                                    <span className="trust-num">15 Lakh+</span>
+                                    <span className="trust-txt">Sacred Matches Made</span>
+                                </div>
+                                <div className="trust-pipe"></div>
+                                <div className="trust-indicator-item">
+                                    <span className="trust-num">Bank-Grade</span>
+                                    <span className="trust-txt">Confidential Privacy</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* RIGHT: ULTRA-GLOSSY GLASS MATRIMONY CARD */}
+                        <div className="hero-form-station">
+                            <div className="glossy-royal-card">
+                                <div className="card-sheen-sweep"></div>
+                                
+                                <div className="gloss-card-header">
+                                    <span className="card-kundan-badge">Shubh Aarambh</span>
+                                    <h3>Find Your Life Companion</h3>
+                                    <p>Select preferences for handpicked matches</p>
+                                </div>
+
+                                <div className="gloss-card-content">
+                                    <div className="gloss-input-field">
+                                        <label>Profile Created For</label>
+                                        <select 
+                                            value={heroProfileFor} 
+                                            onChange={(e) => setHeroProfileFor(e.target.value)}
+                                            className="royal-select"
+                                        >
+                                            <option value="Myself">Myself (Self Registered)</option>
+                                            <option value="Son">My Beloved Son</option>
+                                            <option value="Daughter">My Beloved Daughter</option>
+                                            <option value="Brother">My Brother</option>
+                                            <option value="Sister">My Sister</option>
+                                            <option value="Friend">Relative / Dear Friend</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="gloss-input-field">
+                                        <label>I Am Seeking</label>
+                                        <select 
+                                            value={genderFilter} 
+                                            onChange={(e) => setGenderFilter(e.target.value)}
+                                            className="royal-select"
+                                        >
+                                            <option value="All">All Profiles (Brides & Grooms)</option>
+                                            <option value="Female">Noble Bride (Female)</option>
+                                            <option value="Male">Noble Groom (Male)</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="gloss-input-field">
+                                        <label>Religion & Tradition</label>
+                                        <select 
+                                            value={religionFilter} 
+                                            onChange={(e) => setReligionFilter(e.target.value)}
+                                            className="royal-select"
+                                        >
+                                            <option value="All">All Religions & Cultures</option>
+                                            <option value="Hindu">Hindu</option>
+                                            <option value="Sikh">Sikh</option>
+                                            <option value="Muslim">Muslim</option>
+                                            <option value="Christian">Christian</option>
+                                        </select>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => {
+                                            if (user) {
+                                                navigate("/dashboard");
+                                            } else {
+                                                navigate("/register");
+                                            }
+                                        }} 
+                                        className="btn-glossy-gold-cta"
+                                    >
+                                        <span>SEARCH COMPATIBLE MATCHES</span>
+                                        <span className="gold-arrow">➔</span>
+                                    </button>
+
+                                    <div className="card-guarantee-note">
+                                        <span>🔒 100% Privacy & Screened Contact Access</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                {/* ================= 4. FILTER CONTROLS STRIP ================= */}
+                <section className="filter-controls-section">
+                    <div className="filters-strip">
+                        <span className="filter-title">⚜️ Quick Filters:</span>
+
+                        {!user && (
+                            <div className="filter-pill">
+                                <label>Gender:</label>
+                                <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
+                                    <option value="All">All Profiles</option>
+                                    <option value="Female">Brides</option>
+                                    <option value="Male">Grooms</option>
+                                </select>
+                            </div>
+                        )}
+
+                        <div className="filter-pill">
+                            <label>Religion:</label>
+                            <select value={religionFilter} onChange={(e) => setReligionFilter(e.target.value)}>
+                                <option value="All">All Religions</option>
+                                <option value="Hindu">Hindu</option>
+                                <option value="Sikh">Sikh</option>
+                                <option value="Muslim">Muslim</option>
+                                <option value="Christian">Christian</option>
+                            </select>
+                        </div>
+
+                        {(search || religionFilter !== "All" || genderFilter !== "All") && (
+                            <button
+                                className="btn-reset"
+                                onClick={() => {
+                                    setSearch("");
+                                    setGenderFilter("All");
+                                    setReligionFilter("All");
+                                }}
+                            >
+                                ✕ Reset Filters
+                            </button>
+                        )}
+                    </div>
+                </section>
+
+                {/* ================= 5. PROFILES GRID ================= */}
+                <main className="matches-wrapper">
+                    <div className="matches-top">
+                        <div className="section-title-box">
+                            <div className="curated-pill">🌟 ROYAL VERIFIED PROFILES</div>
+                            <h2 className="section-heading">Featured Prospects Ready for Marriage</h2>
+                            <p className="section-subheading">Hand-screened profiles with verified backgrounds, career, and family roots</p>
+                        </div>
+                        <span className="status-tag">
+                            {user ? `✨ Matching For: ${targetGender?.toUpperCase()}` : `🔥 Showing: ${filteredMatches.length} Profiles`}
+                        </span>
+                    </div>
+
+                    {filteredMatches.length === 0 ? (
+                        <div className="empty-state">
+                            <span className="empty-icon">🕊️</span>
+                            <h3>No Profiles Match Your Exact Filter</h3>
+                            <p>Try resetting the religion or search filters to explore more curated matches.</p>
+                        </div>
+                    ) : (
+                        <div className="profiles-grid">
+                            {filteredMatches.map((item) => {
+                                const isConnected = connectedIds.includes(item._id);
+                                return (
+                                    <div key={item._id} className="profile-card">
+                                        <div className="card-img-box">
+                                            <img src={item.photoUrl} alt={item.fullName} loading="lazy" />
+
+                                            {isNewUser(item.createdAt) && (
+                                                <span className="badge-just-joined">✨ NEW MEMBER</span>
+                                            )}
+
+                                            <span className={`gender-tag ${item.gender.toLowerCase()}`}>
+                                                {item.gender === "Female" ? "Bride" : "Groom"}
+                                            </span>
+                                            <div className="verified-corner-badge">✓ 100% ID Verified</div>
+                                        </div>
+
+                                        <div className="card-details">
+                                            <div className="name-row">
+                                                <h4>{item.fullName}</h4>
+                                                <span className="age-pill">{calculateAge(item.dob)} Yrs</span>
+                                            </div>
+
+                                            <p className="vitals">
+                                                {item.height} cm • {item.religion} ({item.caste})
+                                            </p>
+
+                                            <div className="meta-lines">
+                                                <div><span className="meta-icon">🎓</span> {item.education}</div>
+                                                <div><span className="meta-icon">💼</span> {item.occupation} • <strong>{item.annualIncome}</strong></div>
+                                                <div><span className="meta-icon">📍</span> {item.city}, {item.state}</div>
+                                            </div>
+
+                                            <div className="card-btns">
+                                                <button
+                                                    className={`btn-interest ${isConnected ? "sent" : ""}`}
+                                                    onClick={() => toggleConnect(item._id)}
+                                                >
+                                                    {isConnected ? "✓ Request Sent" : "Connect Now 💌"}
+                                                </button>
+                                                <button
+                                                    className="btn-bio"
+                                                    onClick={() => setSelectedProfile(item)}
+                                                >
+                                                    View Bio
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </main>
+
+                {/* ================= 6. LUXURY PILLARS SECTION ================= */}
+                <section className="luxury-pillars-section">
+                    <div className="section-container">
+                        <div className="center-header">
+                            <span className="curated-pill">THE PAIRPERFECT ASSURANCE</span>
+                            <h2>Matchmaking Crafted for Cultured Families</h2>
+                            <p>We blend sacred Indian values with modern aesthetics and supreme confidentiality.</p>
+                        </div>
+
+                        <div className="pillars-grid">
+                            <div className="pillar-card">
+                                <div className="pillar-icon">⚜️</div>
+                                <h3>Verified Lineage & Background</h3>
+                                <p>Every prospective bride and groom undergoes government ID and phone authentication to ensure genuine matrimonial intentions.</p>
+                            </div>
+
+                            <div className="pillar-card">
+                                <div className="pillar-icon">💫</div>
+                                <h3>Astrological & Lifestyle Harmony</h3>
+                                <p>Detailed insights on lifestyle, food habits, core spiritual values, and career ambitions before families meet.</p>
+                            </div>
+
+                            <div className="pillar-card">
+                                <div className="pillar-icon">🔒</div>
+                                <h3>Royal Discretion & Privacy</h3>
+                                <p>Your photos and contact coordinates are shielded. Only profiles you accept can view sensitive details.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ================= 7. SACRED STEPPING STONES SECTION ================= */}
+                <section className="stepping-stones-section">
+                    <div className="section-container">
+                        <div className="center-header">
+                            <span className="curated-pill">SIMPLE & SACRED</span>
+                            <h2>Your 3-Step Journey to Matrimony</h2>
+                            <p>From your first express interest to the holy wedding vows.</p>
+                        </div>
+
+                        <div className="steps-grid">
+                            <div className="step-card">
+                                <span className="step-badge">Phase 01</span>
+                                <h4>Create Your Royal Bio-Data</h4>
+                                <p>Share your education, lifestyle, family values, and aspirations in a modern, elegant format.</p>
+                            </div>
+
+                            <div className="step-card">
+                                <span className="step-badge">Phase 02</span>
+                                <h4>Discover Destined Matches</h4>
+                                <p>Explore hand-curated matches that align with your gotra, city, religion, and educational standard.</p>
+                            </div>
+
+                            <div className="step-card">
+                                <span className="step-badge">Phase 03</span>
+                                <h4>Connect with Dignity</h4>
+                                <p>Send instant express interest, initiate genuine conversations, and unite families with pride.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ================= 8. CELESTIAL LOVE STORIES ================= */}
+                <section className="testimonials-section">
+                    <div className="section-container">
+                        <div className="center-header">
+                            <span className="curated-pill">TESTIMONIALS</span>
+                            <h2>Sacred Unions Made On PairPerfect</h2>
+                            <p>Read inspiring journeys of couples who found their eternal life companion.</p>
+                        </div>
+
+                        <div className="stories-grid">
+                            <div className="story-card">
+                                <div className="story-stars">⭐⭐⭐⭐⭐</div>
+                                <p className="story-quote">"The aesthetics and verified profiles made us feel comfortable from day one. We connected in November, and our families tied the knot in February!"</p>
+                                <div className="story-author">
+                                    <strong>Aakash & Sneha</strong>
+                                    <span>Married • Bangalore</span>
+                                </div>
+                            </div>
+
+                            <div className="story-card highlight-story">
+                                <div className="story-stars">⭐⭐⭐⭐⭐</div>
+                                <p className="story-quote">"Finding someone with progressive thoughts who also respects Indian family traditions felt impossible until I joined PairPerfect."</p>
+                                <div className="story-author">
+                                    <strong>Rohan & Pooja</strong>
+                                    <span>Engaged • Mumbai</span>
+                                </div>
+                            </div>
+
+                            <div className="story-card">
+                                <div className="story-stars">⭐⭐⭐⭐⭐</div>
+                                <p className="story-quote">"Clean, classy, and without any fake profiles. Our parents met on video call, and everything clicked seamlessly."</p>
+                                <div className="story-author">
+                                    <strong>Vikram & Simran</strong>
+                                    <span>Married • Delhi</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ================= 9. LOGIN POPUP MODAL ================= */}
+                {showLoginModal && (
+                    <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
+                        <div className="login-modal-box" onClick={(e) => e.stopPropagation()}>
+                            <button className="close-btn" onClick={() => setShowLoginModal(false)}>✕</button>
+
+                            <div className="modal-title">
+                                <span className="modal-icon">⚜️</span>
+                                <h2>Royal Welcome</h2>
+                                <p>Sign in to your PairPerfect Matrimony Account</p>
+                            </div>
+
+                            {loginError && <div className="modal-error">{loginError}</div>}
+
+                            <form onSubmit={handleLoginSubmit} className="modal-form">
+                                <div className="input-box">
+                                    <label>Registered Email Address</label>
+                                    <input
+                                        type="email"
+                                        placeholder="yourname@gmail.com"
+                                        value={loginForm.email}
+                                        onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="input-box">
+                                    <label>Password</label>
+                                    <input
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={loginForm.password}
+                                        onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <button type="submit" className="btn-modal-submit" disabled={loggingIn}>
+                                    {loggingIn ? "Connecting..." : "LOG IN TO PROFILE ➔"}
+                                </button>
+                            </form>
+
+                            <p className="modal-bottom">
+                                New to PairPerfect?{" "}
+                                <Link to="/register" onClick={() => setShowLoginModal(false)}>
+                                    Register Free Today
+                                </Link>
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* ================= 10. BIO-DATA DETAILS MODAL ================= */}
+                {selectedProfile && (
+                    <div className="modal-backdrop" onClick={() => setSelectedProfile(null)}>
+                        <div className="bio-modal-box" onClick={(e) => e.stopPropagation()}>
+                            <button className="close-btn" onClick={() => setSelectedProfile(null)}>✕</button>
+
+                            <div className="bio-head">
+                                <img src={selectedProfile.photoUrl} alt="" className="bio-avatar" />
+                                <div>
+                                    <div className="bio-verified-text">✓ 100% ID Verified Profile</div>
+                                    <h3>{selectedProfile.fullName}</h3>
+                                    <p>{calculateAge(selectedProfile.dob)} Years • {selectedProfile.occupation} • {selectedProfile.city}</p>
+                                </div>
+                            </div>
+
+                            <div className="bio-body">
+                                <div className="bio-desc">
+                                    <strong>About Candidate:</strong>
+                                    <p>{selectedProfile.about || "Traditional, well-cultured and looking for a compatible life companion."}</p>
+                                </div>
+
+                                <div className="bio-stats">
+                                    <div><span>Community:</span> <strong>{selectedProfile.religion} ({selectedProfile.caste})</strong></div>
+                                    <div><span>Diet Preference:</span> <strong>{selectedProfile.diet}</strong></div>
+                                    <div><span>Marital Status:</span> <strong>{selectedProfile.maritalStatus}</strong></div>
+                                    <div><span>Annual Package:</span> <strong>{selectedProfile.annualIncome}</strong></div>
+                                    <div><span>Education:</span> <strong>{selectedProfile.education}</strong></div>
+                                    <div><span>Current City:</span> <strong>{selectedProfile.city}, {selectedProfile.state}</strong></div>
+                                </div>
+                            </div>
+
+                            <button
+                                className={`btn-interest full ${connectedIds.includes(selectedProfile._id) ? "sent" : ""}`}
+                                onClick={() => toggleConnect(selectedProfile._id)}
+                            >
+                                {connectedIds.includes(selectedProfile._id) ? "✓ Request Sent Successfully" : "Send Express Interest 💌"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ================= 11. LUXURY FOOTER ================= */}
+                <footer className="matrimony-footer">
+                    <div className="footer-top">
+                        <div className="footer-brand">
+                            <span className="brand-title">PAIR<span className="gold-text">PERFECT</span></span>
+                            <p>India’s most trusted matrimonial haven, where timeless cultural grace meets modern compatibility.</p>
+                        </div>
+                        <div className="footer-links-group">
+                            <h4>Explore Profiles</h4>
+                            <span>Verified Brides</span>
+                            <span>Verified Grooms</span>
+                            <span>Kundali Compatibility</span>
+                        </div>
+                        <div className="footer-links-group">
+                            <h4>Trust & Security</h4>
+                            <span>Verification Vault</span>
+                            <span>Privacy Protocols</span>
+                            <span>VIP Support</span>
+                        </div>
+                    </div>
+                    <div className="footer-bottom">
+                        <p>© PairPerfect Matrimony — The Royal Standard in Indian Matchmaking.</p>
+                    </div>
+                </footer>
+
+            </div>
+        </>
+    );
+}
+
+const homeStyles = `
+  /* ================= ROOT PALETTE: ROYAL VELVET MAROON & CHAMPAGNE GOLD ================= */
+  :root {
+    --velvet-maroon-dark: #3b0512;
+    --velvet-maroon: #5d091e;
+    --velvet-maroon-bright: #83122e;
+    --gold-liquid: #c59b27;
+    --gold-bright: #e7bf53;
+    --gold-sheen: #fff2d1;
+    --gold-border: rgba(197, 155, 39, 0.45);
+    
+    --text-primary: #1c1c1c;
+    --text-secondary: #555555;
+    --canvas-ivory: #fcf9f2;
+  }
+
+  * { box-sizing: border-box; }
+
+  .home-layout {
+    min-height: 100vh;
+    background: var(--canvas-ivory);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* 1. ROYAL TOP TICKER */
+  .royal-ticker-bar {
+    background: #2b040e;
+    border-bottom: 1.5px solid var(--gold-border);
+    padding: 7px 16px;
+    font-size: 11px;
+    text-align: center;
+    color: #ebd3a2;
+    overflow-x: auto;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+  .live-sparkle-pill {
+    background: linear-gradient(135deg, var(--gold-liquid), var(--gold-bright));
+    color: #2b040e;
+    font-weight: 900;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 9px;
+    margin-right: 12px;
+  }
+  .ticker-inner span {
+    cursor: pointer;
+    margin: 0 4px;
+    transition: color 0.2s;
+  }
+  .ticker-inner span:hover {
+    color: #ffffff;
+  }
+
+  /* 2. NAVBAR */
+  .navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(14px);
+    border-bottom: 2px solid var(--gold-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 25px rgba(59, 5, 18, 0.08);
+  }
+  .nav-container {
+    max-width: 1260px;
+    margin: 0 auto;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+  .logo-mandala { font-size: 24px; color: var(--gold-liquid); }
+  .logo-title-wrap { display: flex; flex-direction: column; }
+  .brand-title {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--velvet-maroon);
+    letter-spacing: -0.5px;
+  }
+  .gold-text { color: var(--gold-liquid); }
+  .brand-tag {
+    font-size: 8.5px;
+    color: var(--gold-liquid);
+    font-weight: 800;
+    letter-spacing: 2px;
+  }
+
+  .nav-search {
+    flex: 1;
+    max-width: 440px;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .nav-search .search-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 14px;
+    color: var(--gold-liquid);
+  }
+  .nav-search input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    background: #fffdf9;
+    border: 1.5px solid var(--gold-border);
+    border-radius: 25px;
+    color: #222;
+    outline: none;
+    font-size: 13px;
+    transition: all 0.25s ease;
+  }
+  .nav-search input:focus {
+    border-color: var(--velvet-maroon);
+    box-shadow: 0 0 0 4px rgba(93, 9, 30, 0.12);
+  }
+
+  .nav-actions { display: flex; align-items: center; gap: 12px; }
+  .btn-nav-login {
+    background: transparent;
+    color: var(--velvet-maroon);
+    border: 1.5px solid var(--velvet-maroon);
+    padding: 7px 20px;
+    border-radius: 25px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+  .btn-nav-login:hover {
+    background: var(--velvet-maroon);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(93, 9, 30, 0.2);
+  }
+
+  .btn-nav-register {
+    background: linear-gradient(135deg, var(--velvet-maroon) 0%, var(--velvet-maroon-bright) 100%);
+    color: #ffffff;
+    text-decoration: none;
+    padding: 8px 22px;
+    border-radius: 25px;
+    font-size: 13px;
+    font-weight: 800;
+    border: 1px solid var(--gold-liquid);
+    box-shadow: 0 4px 14px rgba(93, 9, 30, 0.3);
+    transition: 0.25s ease;
+  }
+  .btn-nav-register:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(93, 9, 30, 0.45);
+  }
+
+  .nav-user-badge {
+    color: var(--velvet-maroon);
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 13px;
+    background: #fff7e4;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--gold-border);
+  }
+  .btn-logout {
+    background: #fff;
+    border: 1px solid #ffcdd2;
+    color: #d32f2f;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  /* 3. GLOSSY HERO WITH BRIDE & GROOM APPROACHING ANIMATION */
+  .hero-luxury-stage {
+    position: relative;
+    background: radial-gradient(circle at 20% 30%, #4a0618 0%, #2b040e 75%, #190107 100%);
+    padding: 55px 20px 45px;
+    overflow: hidden;
+    color: #ffffff;
+    border-bottom: 3px solid var(--gold-liquid);
+  }
+
+  /* Atmospheric glam mesh & floating sparkles */
+  .bg-glamour-mesh {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(197, 155, 39, 0.12) 1px, transparent 0);
+    background-size: 24px 24px;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+  .floating-sparkle {
+    position: absolute;
+    pointer-events: none;
+    font-size: 20px;
+    opacity: 0.5;
+    animation: twinkleFloat 5s ease-in-out infinite;
+  }
+  .spark-1 { top: 12%; left: 8%; animation-delay: 0s; }
+  .spark-2 { top: 75%; left: 4%; animation-delay: 1.5s; font-size: 16px; }
+  .spark-3 { top: 20%; right: 38%; animation-delay: 2.2s; }
+  .spark-4 { bottom: 15%; right: 8%; animation-delay: 3s; }
+
+  .hero-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .hero-animation-theater { flex: 1.3; }
+
+  .royal-badge-pill {
+    display: inline-block;
+    background: rgba(197, 155, 39, 0.15);
+    border: 1px solid var(--gold-liquid);
+    color: var(--gold-bright);
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    box-shadow: 0 0 15px rgba(197, 155, 39, 0.2);
+  }
+
+  .hero-royal-headline {
+    font-size: 44px;
+    line-height: 1.15;
+    font-weight: 900;
+    margin: 0 0 16px;
+    letter-spacing: -1px;
+  }
+  .gold-liquid-gradient {
+    background: linear-gradient(135deg, #ffffff 0%, var(--gold-bright) 50%, var(--gold-liquid) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 25px rgba(231, 191, 83, 0.35);
+  }
+
+  .hero-royal-caption {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #e5cfd5;
+    max-width: 530px;
+    margin-bottom: 26px;
+  }
+
+  /* 🔥 THE LIVE CONVERGENCE BOX: BRIDE & GROOM APPROACHING ANIMATION */
+  .convergence-stage-box {
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+    border: 1.5px solid rgba(197, 155, 39, 0.35);
+    border-radius: 24px;
+    padding: 24px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 540px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), inset 0 0 30px rgba(197, 155, 39, 0.06);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .stage-glare {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent 45%, rgba(255, 255, 255, 0.08) 50%, transparent 55%);
+    pointer-events: none;
+    animation: shineSweep 6s infinite;
+  }
+
+  /* Groom Card (Slides right towards center) */
+  .avatar-approach-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 2;
+  }
+  .groom-card {
+    animation: groomGlide 4s ease-in-out infinite alternate;
+  }
+  .bride-card {
+    animation: brideGlide 4s ease-in-out infinite alternate;
+  }
+
+  .card-avatar-lens {
+    position: relative;
+    width: 90px;
+    height: 110px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 2px solid var(--gold-bright);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(231, 191, 83, 0.3);
+  }
+  .card-avatar-lens img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .card-mini-label {
+    position: absolute;
+    bottom: 0;
+    inset-x: 0;
+    background: rgba(43, 4, 14, 0.9);
+    font-size: 9px;
+    font-weight: 800;
+    text-align: center;
+    padding: 2px 0;
+    color: var(--gold-bright);
+    letter-spacing: 0.5px;
+  }
+  .avatar-info-pill {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(197, 155, 39, 0.3);
+    padding: 3px 10px;
+    border-radius: 12px;
+  }
+  .avatar-info-pill strong {
+    display: block;
+    font-size: 11.5px;
+    color: #ffffff;
+  }
+  .avatar-info-pill small {
+    font-size: 9.5px;
+    color: #ebd3a2;
+  }
+
+  /* Center Destiny Cosmic Orb */
+  .convergence-destiny-core {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+  .mandala-center-orb {
+    width: 54px;
+    height: 54px;
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold-liquid));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 25px rgba(231, 191, 83, 0.8);
+    position: relative;
+    z-index: 3;
+    animation: orbPulse 2s infinite alternate;
+  }
+  .mandala-icon { font-size: 24px; }
+  .cosmic-pulse-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border: 1.5px dashed var(--gold-bright);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .ring-1 {
+    width: 80px;
+    height: 80px;
+    opacity: 0.6;
+    animation: rotateSlow 8s linear infinite;
+  }
+  .ring-2 {
+    width: 108px;
+    height: 108px;
+    opacity: 0.3;
+    animation: rotateSlow 12s linear infinite reverse;
+  }
+  .match-percent-pill {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--gold-bright);
+    color: var(--gold-sheen);
+    font-size: 9.5px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 10px;
+    margin-top: 10px;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+
+  /* Trust Indicators Strip */
+  .hero-trust-indicators {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(197, 155, 39, 0.25);
+    padding: 10px 18px;
+    border-radius: 14px;
+    width: fit-content;
+  }
+  .trust-indicator-item { display: flex; flex-direction: column; }
+  .trust-num {
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--gold-bright);
+  }
+  .trust-txt {
+    font-size: 10.5px;
+    color: #ebd3a2;
+  }
+  .trust-pipe {
+    width: 1px;
+    height: 24px;
+    background: rgba(197, 155, 39, 0.3);
+  }
+
+  /* RIGHT: ULTRA-GLOSSY ROYAL REGISTRATION CARD */
+  .hero-form-station {
+    flex: 0.85;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .glossy-royal-card {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(20px);
+    border: 2px solid var(--gold-liquid);
+    border-radius: 24px;
+    width: 100%;
+    max-width: 390px;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(197, 155, 39, 0.2);
+    position: relative;
+    color: var(--text-primary);
+  }
+  .card-sheen-sweep {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 50%);
+    pointer-events: none;
+  }
+  .gloss-card-header {
+    background: linear-gradient(135deg, var(--velvet-maroon) 0%, var(--velvet-maroon-dark) 100%);
+    padding: 20px;
+    color: #ffffff;
+    text-align: center;
+    border-bottom: 3px solid var(--gold-liquid);
+  }
+  .card-kundan-badge {
+    display: inline-block;
+    background: rgba(197, 155, 39, 0.25);
+    border: 1px solid var(--gold-bright);
+    color: var(--gold-sheen);
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 10px;
+    border-radius: 12px;
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+  }
+  .gloss-card-header h3 {
+    margin: 4px 0 2px;
+    font-size: 20px;
+    font-weight: 900;
+    color: #ffffff;
+  }
+  .gloss-card-header p {
+    margin: 0;
+    font-size: 12px;
+    color: #f7dfa3;
+  }
+  .gloss-card-content {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .gloss-input-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .gloss-input-field label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #444;
+  }
+  .royal-select {
+    padding: 11px 12px;
+    border: 1.5px solid var(--gold-border);
+    border-radius: 10px;
+    background: #fffdfa;
+    font-size: 13.5px;
+    color: #222;
+    outline: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .royal-select:focus {
+    border-color: var(--velvet-maroon);
+  }
+  .btn-glossy-gold-cta {
+    background: linear-gradient(135deg, var(--gold-liquid) 0%, #b8860b 100%);
+    color: #2b040e;
+    border: none;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(197, 155, 39, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.25s ease;
+    margin-top: 4px;
+  }
+  .btn-glossy-gold-cta:hover {
+    background: linear-gradient(135deg, var(--gold-bright) 0%, var(--gold-liquid) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(197, 155, 39, 0.6);
+  }
+  .gold-arrow { font-size: 16px; }
+  .card-guarantee-note {
+    font-size: 11px;
+    color: #666;
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  /* 4. FILTER CONTROLS STRIP */
+  .filter-controls-section {
+    background: #ffffff;
+    border-bottom: 1.5px solid var(--gold-border);
+  }
+  .filters-strip {
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .filter-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--velvet-maroon);
+  }
+  .filter-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff9ed;
+    border: 1px solid var(--gold-border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+  }
+  .filter-pill label { font-weight: 700; color: #5d4c38; }
+  .filter-pill select {
+    background: transparent;
+    color: var(--velvet-maroon);
+    border: none;
+    outline: none;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .btn-reset {
+    background: #fff;
+    border: 1px solid #ccaa88;
+    color: var(--velvet-maroon);
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* 5. MATCHES GRID SECTION */
+  .matches-wrapper {
+    max-width: 1240px;
+    margin: 40px auto 60px;
+    padding: 0 20px;
+  }
+  .matches-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--gold-border);
+    padding-bottom: 16px;
+  }
+  .curated-pill {
+    display: inline-block;
+    background: #fff8e8;
+    border: 1px solid var(--gold-liquid);
+    color: var(--velvet-maroon);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-bottom: 6px;
+  }
+  .section-heading {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--velvet-maroon);
+    margin: 0;
+  }
+  .section-subheading {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #666;
+  }
+  .status-tag {
+    background: #ffffff;
+    border: 1.5px solid var(--gold-liquid);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--velvet-maroon);
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(197, 155, 39, 0.12);
+  }
+
+  .profiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 24px;
+  }
+  .profile-card {
+    background: #ffffff;
+    border: 1.5px solid var(--gold-border);
+    border-radius: 18px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+  }
+  .profile-card:hover {
+    transform: translateY(-6px);
+    border-color: var(--gold-liquid);
+    box-shadow: 0 16px 32px rgba(93, 9, 30, 0.14);
+  }
+  .card-img-box {
+    position: relative;
+    height: 250px;
+    background: #f0e6d6;
+  }
+  .card-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .badge-just-joined {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: linear-gradient(135deg, var(--gold-bright), #b8860b);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .gender-tag {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .gender-tag.female { color: #b8005b; }
+  .gender-tag.male { color: #0f52ba; }
+
+  .verified-corner-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(16, 185, 129, 0.95);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  .card-details { padding: 16px; }
+  .name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-details h4 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    color: #1a1a1a;
+  }
+  .age-pill {
+    background: #fff8ea;
+    color: var(--velvet-maroon);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--gold-border);
+  }
+  .vitals {
+    color: var(--velvet-maroon);
+    font-weight: 700;
+    font-size: 12.5px;
+    margin: 4px 0 10px;
+  }
+  .meta-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12.5px;
+    color: #444;
+    margin-bottom: 16px;
+    background: #fffdf9;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid #f3e5cd;
+  }
+  .card-btns { display: flex; gap: 8px; }
+  .btn-interest {
+    flex: 1;
+    background: linear-gradient(135deg, var(--velvet-maroon) 0%, var(--velvet-maroon-bright) 100%);
+    color: #ffffff;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 800;
+    font-size: 13px;
+    transition: 0.2s;
+  }
+  .btn-interest:hover {
+    background: linear-gradient(135deg, var(--velvet-maroon-dark) 0%, var(--velvet-maroon) 100%);
+  }
+  .btn-interest.sent { background: #0f8a5f; }
+  .btn-bio {
+    background: #ffffff;
+    border: 1.5px solid var(--gold-liquid);
+    color: var(--velvet-maroon);
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 800;
+    transition: 0.2s;
+  }
+  .btn-bio:hover { background: #fff8e8; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid var(--gold-border);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; display: inline-block; }
+
+  /* 6. LUXURY PILLARS SECTION */
+  .luxury-pillars-section {
+    background: #ffffff;
+    border-top: 1.5px solid var(--gold-border);
+    border-bottom: 1.5px solid var(--gold-border);
+    padding: 60px 20px;
+  }
+  .section-container {
+    max-width: 1220px;
+    margin: 0 auto;
+  }
+  .center-header {
+    text-align: center;
+    max-width: 650px;
+    margin: 0 auto 40px;
+  }
+  .center-header h2 {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--velvet-maroon);
+    margin: 8px 0;
+  }
+  .center-header p {
+    color: #666;
+    font-size: 15px;
+    margin: 0;
+  }
+  .pillars-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 26px;
+  }
+  .pillar-card {
+    background: #fffdf9;
+    border: 1.5px solid var(--gold-border);
+    padding: 28px 24px;
+    border-radius: 18px;
+    transition: transform 0.25s ease, border-color 0.25s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  }
+  .pillar-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--gold-liquid);
+    box-shadow: 0 12px 25px rgba(197, 155, 39, 0.15);
+  }
+  .pillar-icon {
+    font-size: 32px;
+    color: var(--gold-liquid);
+    margin-bottom: 14px;
+  }
+  .pillar-card h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--velvet-maroon);
+  }
+  .pillar-card p {
+    margin: 0;
+    font-size: 13.5px;
+    color: #555;
+    line-height: 1.6;
+  }
+
+  /* 7. STEPPING STONES SECTION */
+  .stepping-stones-section {
+    padding: 60px 20px;
+    background: #fbf7ee;
+  }
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 26px;
+  }
+  .step-card {
+    background: #ffffff;
+    border: 2px dashed var(--gold-border);
+    padding: 30px 24px;
+    border-radius: 18px;
+    position: relative;
+  }
+  .step-badge {
+    background: var(--velvet-maroon);
+    color: var(--gold-bright);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
+  .step-card h4 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: var(--velvet-maroon);
+  }
+  .step-card p {
+    margin: 0;
+    font-size: 13.5px;
+    color: #666;
+    line-height: 1.6;
+  }
+
+  /* 8. TESTIMONIALS SECTION */
+  .testimonials-section {
+    padding: 60px 20px;
+    background: #ffffff;
+    border-top: 1.5px solid var(--gold-border);
+  }
+  .stories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+  .story-card {
+    background: #fffdf9;
+    border: 1.5px solid var(--gold-border);
+    padding: 24px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .highlight-story {
+    border-color: var(--gold-liquid);
+    box-shadow: 0 10px 30px rgba(197, 155, 39, 0.15);
+    background: #fffbf2;
+  }
+  .story-stars { font-size: 14px; margin-bottom: 12px; }
+  .story-quote {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: #333;
+    font-style: italic;
+    margin: 0 0 16px;
+  }
+  .story-author strong {
+    display: block;
+    font-size: 15px;
+    color: var(--velvet-maroon);
+  }
+  .story-author span {
+    font-size: 12px;
+    color: #777;
+  }
+
+  /* 9. MODALS */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(35, 4, 11, 0.72);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 20px;
+  }
+  .login-modal-box {
+    background: #ffffff;
+    border: 2px solid var(--gold-liquid);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 400px;
+    padding: 30px 24px;
+    position: relative;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+  }
+  .close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: #f7ede2;
+    border: none;
+    color: var(--velvet-maroon);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  .modal-title { text-align: center; margin-bottom: 20px; }
+  .modal-icon { font-size: 26px; color: var(--gold-liquid); }
+  .modal-title h2 {
+    margin: 4px 0 4px;
+    font-size: 22px;
+    color: var(--velvet-maroon);
+    font-weight: 800;
+  }
+  .modal-title p { margin: 0; color: #666; font-size: 13px; }
+  .modal-error {
+    background: #fde8e8;
+    border: 1px solid #f8b4b4;
+    color: #9b1c1c;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .modal-form { display: flex; flex-direction: column; gap: 14px; }
+  .input-box { display: flex; flex-direction: column; gap: 5px; text-align: left; }
+  .input-box label { font-size: 12px; color: #444; font-weight: 700; }
+  .input-box input {
+    background: #fffdfa;
+    border: 1.5px solid var(--gold-border);
+    border-radius: 8px;
+    padding: 11px 12px;
+    color: #222;
+    font-size: 14px;
+    outline: none;
+  }
+  .input-box input:focus { border-color: var(--velvet-maroon); }
+  .btn-modal-submit {
+    background: linear-gradient(135deg, var(--velvet-maroon) 0%, var(--velvet-maroon-bright) 100%);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 6px;
+    font-size: 14px;
+  }
+  .modal-bottom { text-align: center; font-size: 13px; color: #666; margin: 16px 0 0; }
+  .modal-bottom a { color: var(--velvet-maroon); text-decoration: underline; font-weight: 700; }
+
+  /* Bio-Data Modal */
+  .bio-modal-box {
+    background: #ffffff;
+    border: 2px solid var(--gold-liquid);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 500px;
+    padding: 24px;
+    position: relative;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.3);
+  }
+  .bio-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #f0e2cf;
+    padding-bottom: 14px;
+  }
+  .bio-avatar {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2.5px solid var(--gold-liquid);
+  }
+  .bio-verified-text {
+    font-size: 10px;
+    font-weight: 800;
+    color: #0f8a5f;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .bio-head h3 { margin: 2px 0; font-size: 20px; color: var(--velvet-maroon); }
+  .bio-head p { margin: 0; font-size: 13px; color: #666; }
+  .bio-desc { font-size: 13px; color: #444; margin-bottom: 14px; }
+  .bio-desc strong { color: var(--velvet-maroon); }
+  .bio-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: #fff8eb;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 18px;
+    border: 1px solid var(--gold-border);
+  }
+  .bio-stats span { color: #777; font-size: 12px; }
+  .bio-stats strong { color: #222; }
+  .btn-interest.full { width: 100%; padding: 12px; }
+
+  /* 11. FOOTER */
+  .matrimony-footer {
+    background: #ffffff;
+    border-top: 2px solid var(--gold-liquid);
+    padding: 50px 20px 25px;
+  }
+  .footer-top {
+    max-width: 1220px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+    flex-wrap: wrap;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #eee;
+  }
+  .footer-brand { max-width: 380px; }
+  .footer-brand .brand-title { font-size: 24px; font-weight: 900; color: var(--velvet-maroon); }
+  .footer-brand p { font-size: 13px; color: #666; margin-top: 8px; line-height: 1.6; }
+  .footer-links-group h4 { margin: 0 0 12px; font-size: 14px; color: var(--velvet-maroon); }
+  .footer-links-group span { display: block; font-size: 13px; color: #555; margin-bottom: 6px; cursor: pointer; }
+  .footer-links-group span:hover { color: var(--gold-liquid); }
+  .footer-bottom {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-top: 25px;
+  }
+
+  /* KEYFRAME ANIMATIONS FOR BRIDE & GROOM CONVERGENCE */
+  @keyframes groomGlide {
+    0% { transform: translateX(0px) scale(0.96); }
+    100% { transform: translateX(28px) scale(1.04); }
+  }
+  @keyframes brideGlide {
+    0% { transform: translateX(0px) scale(0.96); }
+    100% { transform: translateX(-28px) scale(1.04); }
+  }
+  @keyframes orbPulse {
+    0% { transform: scale(0.92); box-shadow: 0 0 15px rgba(231, 191, 83, 0.5); }
+    100% { transform: scale(1.08); box-shadow: 0 0 35px rgba(231, 191, 83, 0.95); }
+  }
+  @keyframes rotateSlow {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+  @keyframes shineSweep {
+    0% { transform: translate(-100%, -100%) rotate(45deg); }
+    30%, 100% { transform: translate(100%, 100%) rotate(45deg); }
+  }
+  @keyframes twinkleFloat {
+    0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.3; }
+    50% { transform: translateY(-10px) scale(1.2); opacity: 0.8; }
+  }
+
+  /* RESPONSIVE DESIGN */
+  @media(max-width: 992px) {
+    .hero-container {
+      flex-direction: column;
+      gap: 36px;
+    }
+    .hero-form-station {
+      width: 100%;
+      justify-content: center;
+    }
+    .glossy-royal-card { max-width: 100%; }
+    .hero-royal-headline { font-size: 32px; }
+    .nav-search { display: none; }
+    .convergence-stage-box { max-width: 100%; }
+  }
+`;

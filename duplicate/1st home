@@ -1,0 +1,1408 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
+
+// Rich Dummy Profiles (Dono Male aur Female)
+const ALL_DUMMY_PROFILES = [
+    {
+        _id: "demo1",
+        fullName: "Pooja Sharma",
+        gender: "Female",
+        dob: "2001-05-14",
+        height: 165,
+        religion: "Hindu",
+        caste: "Brahmin",
+        city: "Mumbai",
+        state: "Maharashtra",
+        education: "MBA in Finance",
+        occupation: "Financial Analyst",
+        annualIncome: "12 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Ambitious, modern yet rooted in cultural values.",
+        photoUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=80",
+        createdAt: new Date().toISOString()
+    },
+    {
+        _id: "demo2",
+        fullName: "Neha Verma",
+        gender: "Female",
+        dob: "1999-11-20",
+        height: 162,
+        religion: "Hindu",
+        caste: "Kshatriya",
+        city: "Delhi",
+        state: "Delhi",
+        education: "B.Tech in CS",
+        occupation: "Software Engineer",
+        annualIncome: "18 LPA",
+        maritalStatus: "Never Married",
+        diet: "Non-Vegetarian",
+        about: "Tech enthusiast who loves coffee, painting, and traveling.",
+        photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo3",
+        fullName: "Aman Kapoor",
+        gender: "Male",
+        dob: "1998-04-12",
+        height: 178,
+        religion: "Hindu",
+        caste: "Punjabi",
+        city: "Bangalore",
+        state: "Karnataka",
+        education: "M.Tech",
+        occupation: "Product Manager",
+        annualIncome: "24 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Fitness lover, avid reader, looking for a progressive partner.",
+        photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
+        createdAt: new Date().toISOString()
+    },
+    {
+        _id: "demo4",
+        fullName: "Rohan Kulkarni",
+        gender: "Male",
+        dob: "1997-08-05",
+        height: 182,
+        religion: "Hindu",
+        caste: "Maratha",
+        city: "Pune",
+        state: "Maharashtra",
+        education: "MBBS, MD",
+        occupation: "Doctor",
+        annualIncome: "20 LPA",
+        maritalStatus: "Never Married",
+        diet: "Non-Vegetarian",
+        about: "Dedicated healthcare professional who enjoys photography.",
+        photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo5",
+        fullName: "Simran Kaur",
+        gender: "Female",
+        dob: "2000-02-18",
+        height: 168,
+        religion: "Sikh",
+        caste: "Arora",
+        city: "Chandigarh",
+        state: "Punjab",
+        education: "Chartered Accountant",
+        occupation: "Senior Auditor",
+        annualIncome: "15 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Positive, friendly and family-oriented person.",
+        photoUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo6",
+        fullName: "Vikram Rathore",
+        gender: "Male",
+        dob: "1996-09-30",
+        height: 180,
+        religion: "Hindu",
+        caste: "Rajput",
+        city: "Jaipur",
+        state: "Rajasthan",
+        education: "B.Arch",
+        occupation: "Architect & Interior Designer",
+        annualIncome: "16 LPA",
+        maritalStatus: "Never Married",
+        diet: "Vegetarian",
+        about: "Passionate about sustainable architecture and arts.",
+        photoUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400&auto=format&fit=crop&q=80"
+    }
+];
+
+export default function Home() {
+    const { user, logout, saveAuth } = useAuth();
+    const navigate = useNavigate();
+
+    const [myProfile, setMyProfile] = useState(null);
+    const [profiles, setProfiles] = useState(ALL_DUMMY_PROFILES);
+
+    // Search & Category Filters
+    const [search, setSearch] = useState("");
+    const [genderFilter, setGenderFilter] = useState("All");
+    const [religionFilter, setReligionFilter] = useState("All");
+
+    // Login Modal State
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+    const [loginError, setLoginError] = useState("");
+    const [loggingIn, setLoggingIn] = useState(false);
+
+    // Selected Profile for Bio-Data Modal
+    const [selectedProfile, setSelectedProfile] = useState(null);
+    const [connectedIds, setConnectedIds] = useState([]);
+
+    // Quick Hero Register State (Visual only, redirects to register)
+    const [heroProfileFor, setHeroProfileFor] = useState("Myself");
+
+    // Logged-in user ki profile fetch karo
+    useEffect(() => {
+        if (user) {
+            api
+                .get("/profile/me")
+                .then((res) => setMyProfile(res.data))
+                .catch(() => { });
+        } else {
+            setMyProfile(null);
+        }
+    }, [user]);
+
+    // Login Modal Handler
+    const handleLoginSubmit = async (e) => {
+        e.preventDefault();
+        setLoginError("");
+        setLoggingIn(true);
+        try {
+            const { data } = await api.post("/auth/login", loginForm);
+            saveAuth(data);
+            setShowLoginModal(false);
+            setLoginForm({ email: "", password: "" });
+            if (!data.user.profileCreated) {
+                navigate("/create-profile");
+            }
+        } catch (err) {
+            setLoginError(err.response?.data?.message || "Invalid email or password");
+        } finally {
+            setLoggingIn(false);
+        }
+    };
+
+    const calculateAge = (dob) => {
+        if (!dob) return 24;
+        return new Date().getFullYear() - new Date(dob).getFullYear();
+    };
+
+    const isNewUser = (createdAt) => {
+        if (!createdAt) return false;
+        const createdDate = new Date(createdAt);
+        const today = new Date();
+        const diffDays = (today - createdDate) / (1000 * 60 * 60 * 24);
+        return diffDays <= 7;
+    };
+
+    // 🔥 GENDER LOGIC:
+    const myGender = myProfile?.gender?.toLowerCase() || "";
+    const targetGender = myGender === "male" ? "female" : myGender === "female" ? "male" : null;
+
+    const filteredMatches = profiles.filter((p) => {
+        if (myProfile?._id && p._id === myProfile._id) return false;
+
+        if (user && targetGender) {
+            if (p.gender?.toLowerCase() !== targetGender) return false;
+        } else {
+            if (genderFilter !== "All" && p.gender !== genderFilter) return false;
+        }
+
+        const matchesSearch =
+            search === "" ||
+            p.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+            p.city?.toLowerCase().includes(search.toLowerCase()) ||
+            p.occupation?.toLowerCase().includes(search.toLowerCase());
+
+        const matchesReligion = religionFilter === "All" || p.religion === religionFilter;
+
+        return matchesSearch && matchesReligion;
+    });
+
+    const toggleConnect = (id) => {
+        if (!user) {
+            setShowLoginModal(true);
+            return;
+        }
+        setConnectedIds((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+        );
+    };
+
+    return (
+        <>
+            <style>{homeStyles}</style>
+            <div className="home-layout">
+
+                {/* ================= 1. TRADITIONAL TOP LANGUAGE/COMMUNITY STRIP ================= */}
+                <div className="top-community-bar">
+                    <div className="community-list">
+                        <span>Hindi</span> • <span>Punjabi</span> • <span>Bengali</span> • <span>Gujarati</span> • 
+                        <span>Marathi</span> • <span>Marwadi</span> • <span>Kannada</span> • <span>Tamil</span> • 
+                        <span>Telugu</span> • <span>Malayalam</span> • <span>Sindhi</span> • <span>Oriya</span>
+                    </div>
+                </div>
+
+                {/* ================= 2. NAVBAR (Maroon & Golden Accents) ================= */}
+                <header className="navbar">
+                    <div className="nav-container">
+                        <Link to="/" className="brand-logo">
+                            <span className="logo-symbol">💍</span> Pair<span className="golden-text">Perfect</span>
+                            <small className="logo-sub">Pavitra Rishtey</small>
+                        </Link>
+
+                        <div className="nav-search">
+                            <span className="search-icon">🔍</span>
+                            <input
+                                type="text"
+                                placeholder="Search by name, city, profession..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="nav-actions">
+                            {user ? (
+                                <>
+                                    <Link to="/dashboard" className="nav-user-badge">
+                                        ✨ Namaste, {user.name}
+                                    </Link>
+                                    <button onClick={logout} className="btn-logout">
+                                        Logout
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="member-label">Already a member?</span>
+                                    <button onClick={() => setShowLoginModal(true)} className="btn-nav-login">
+                                        LOGIN
+                                    </button>
+                                    <Link to="/register" className="btn-nav-register">
+                                        Register Free
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </header>
+
+                {/* ================= 3. BHARATMATRIMONY STYLE HERO SECTION ================= */}
+                <section className="hero-section">
+                    <div className="hero-container">
+                        
+                        {/* Left Side: Trust & Celebratory Banner */}
+                        <div className="hero-left">
+                            <div className="trust-badge-pill">
+                                👑 India's Most Trusted & Premium Matrimony
+                            </div>
+                            <h1 className="hero-heading">
+                                The <span className="highlight-maroon">Biggest & Most Trusted</span> Matrimony Service for Indians!
+                            </h1>
+                            <p className="hero-subtext">
+                                Celebrate life together with verified brides and grooms from cultured and respected families across India.
+                            </p>
+                            
+                            <div className="hero-stats-row">
+                                <div className="stat-item">
+                                    <span className="stat-number">10 Lakh+</span>
+                                    <span className="stat-label">Verified Profiles</span>
+                                </div>
+                                <div className="stat-divider"></div>
+                                <div className="stat-item">
+                                    <span className="stat-number">100%</span>
+                                    <span className="stat-label">Privacy Protected</span>
+                                </div>
+                                <div className="stat-divider"></div>
+                                <div className="stat-item">
+                                    <span className="stat-number">25+</span>
+                                    <span className="stat-label">Years of Matchmaking</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Side: Matrimony Lead / Action Card (Like Image) */}
+                        <div className="hero-right">
+                            <div className="matrimony-form-card">
+                                <div className="form-card-header">
+                                    <h3>Create a Matrimony Profile</h3>
+                                    <p>Find your soulmate today</p>
+                                </div>
+
+                                <div className="form-card-body">
+                                    <div className="card-input-group">
+                                        <label>Profile Created For</label>
+                                        <select 
+                                            value={heroProfileFor} 
+                                            onChange={(e) => setHeroProfileFor(e.target.value)}
+                                            className="matrimony-select"
+                                        >
+                                            <option value="Myself">Myself</option>
+                                            <option value="Son">My Son</option>
+                                            <option value="Daughter">My Daughter</option>
+                                            <option value="Brother">My Brother</option>
+                                            <option value="Sister">My Sister</option>
+                                            <option value="Friend">Relative / Friend</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="card-input-group">
+                                        <label>Looking For</label>
+                                        <select 
+                                            value={genderFilter} 
+                                            onChange={(e) => setGenderFilter(e.target.value)}
+                                            className="matrimony-select"
+                                        >
+                                            <option value="All">Bride or Groom (All)</option>
+                                            <option value="Female">Bride (Female)</option>
+                                            <option value="Male">Groom (Male)</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="card-input-group">
+                                        <label>Community / Religion</label>
+                                        <select 
+                                            value={religionFilter} 
+                                            onChange={(e) => setReligionFilter(e.target.value)}
+                                            className="matrimony-select"
+                                        >
+                                            <option value="All">All Religions</option>
+                                            <option value="Hindu">Hindu</option>
+                                            <option value="Sikh">Sikh</option>
+                                            <option value="Muslim">Muslim</option>
+                                            <option value="Christian">Christian</option>
+                                        </select>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => {
+                                            if (user) {
+                                                navigate("/dashboard");
+                                            } else {
+                                                navigate("/register");
+                                            }
+                                        }} 
+                                        className="btn-register-cta"
+                                    >
+                                        GET STARTED FREE ➔
+                                    </button>
+
+                                    <p className="card-disclaimer">
+                                        *By registering, you agree to our <u>Terms</u> and <u>Privacy Policy</u>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                {/* ================= 4. FILTER CONTROLS STRIP ================= */}
+                <section className="filter-controls-section">
+                    <div className="filters-strip">
+                        <span className="filter-title">⚡ Refine Profiles:</span>
+
+                        {!user && (
+                            <div className="filter-pill">
+                                <label>Gender:</label>
+                                <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
+                                    <option value="All">All Profiles</option>
+                                    <option value="Female">Brides</option>
+                                    <option value="Male">Grooms</option>
+                                </select>
+                            </div>
+                        )}
+
+                        <div className="filter-pill">
+                            <label>Religion:</label>
+                            <select value={religionFilter} onChange={(e) => setReligionFilter(e.target.value)}>
+                                <option value="All">All Religions</option>
+                                <option value="Hindu">Hindu</option>
+                                <option value="Sikh">Sikh</option>
+                                <option value="Muslim">Muslim</option>
+                                <option value="Christian">Christian</option>
+                            </select>
+                        </div>
+
+                        {(search || religionFilter !== "All" || genderFilter !== "All") && (
+                            <button
+                                className="btn-reset"
+                                onClick={() => {
+                                    setSearch("");
+                                    setGenderFilter("All");
+                                    setReligionFilter("All");
+                                }}
+                            >
+                                ✕ Clear Filters
+                            </button>
+                        )}
+                    </div>
+                </section>
+
+                {/* ================= 5. PROFILES GRID ================= */}
+                <main className="matches-wrapper">
+                    <div className="matches-top">
+                        <div className="section-title-box">
+                            <h2 className="section-heading">Featured Verified Profiles</h2>
+                            <p className="section-subheading">Handpicked and verified prospects ready for marriage</p>
+                        </div>
+                        <span className="status-tag">
+                            {user ? `Showing: ${targetGender?.toUpperCase()}` : `Showing: ${filteredMatches.length} Profiles`}
+                        </span>
+                    </div>
+
+                    {filteredMatches.length === 0 ? (
+                        <div className="empty-state">
+                            <span className="empty-icon">🕊️</span>
+                            <h3>No Matching Profiles Found</h3>
+                            <p>Try resetting the religion or search filters to explore more matches.</p>
+                        </div>
+                    ) : (
+                        <div className="profiles-grid">
+                            {filteredMatches.map((item) => {
+                                const isConnected = connectedIds.includes(item._id);
+                                return (
+                                    <div key={item._id} className="profile-card">
+                                        <div className="card-img-box">
+                                            <img src={item.photoUrl} alt={item.fullName} loading="lazy" />
+
+                                            {isNewUser(item.createdAt) && (
+                                                <span className="badge-just-joined">✨ NEW</span>
+                                            )}
+
+                                            <span className={`gender-tag ${item.gender.toLowerCase()}`}>
+                                                {item.gender === "Female" ? "Bride" : "Groom"}
+                                            </span>
+                                            <div className="verified-corner-badge">✓ Verified</div>
+                                        </div>
+
+                                        <div className="card-details">
+                                            <div className="name-row">
+                                                <h4>{item.fullName}</h4>
+                                                <span className="age-pill">{calculateAge(item.dob)} Yrs</span>
+                                            </div>
+
+                                            <p className="vitals">
+                                                {item.height} cm • {item.religion} ({item.caste})
+                                            </p>
+
+                                            <div className="meta-lines">
+                                                <div><span className="meta-icon">🎓</span> {item.education}</div>
+                                                <div><span className="meta-icon">💼</span> {item.occupation} • <strong>{item.annualIncome}</strong></div>
+                                                <div><span className="meta-icon">📍</span> {item.city}, {item.state}</div>
+                                            </div>
+
+                                            <div className="card-btns">
+                                                <button
+                                                    className={`btn-interest ${isConnected ? "sent" : ""}`}
+                                                    onClick={() => toggleConnect(item._id)}
+                                                >
+                                                    {isConnected ? "✓ Request Sent" : "Connect Now"}
+                                                </button>
+                                                <button
+                                                    className="btn-bio"
+                                                    onClick={() => setSelectedProfile(item)}
+                                                >
+                                                    View Bio
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </main>
+
+                {/* ================= 6. LOGIN POPUP MODAL ================= */}
+                {showLoginModal && (
+                    <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
+                        <div className="login-modal-box" onClick={(e) => e.stopPropagation()}>
+                            <button className="close-btn" onClick={() => setShowLoginModal(false)}>✕</button>
+
+                            <div className="modal-title">
+                                <span className="modal-icon">🌸</span>
+                                <h2>Welcome Back</h2>
+                                <p>Sign in to your PairPerfect Matrimony Account</p>
+                            </div>
+
+                            {loginError && <div className="modal-error">{loginError}</div>}
+
+                            <form onSubmit={handleLoginSubmit} className="modal-form">
+                                <div className="input-box">
+                                    <label>Registered Email</label>
+                                    <input
+                                        type="email"
+                                        placeholder="yourname@gmail.com"
+                                        value={loginForm.email}
+                                        onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="input-box">
+                                    <label>Password</label>
+                                    <input
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={loginForm.password}
+                                        onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <button type="submit" className="btn-modal-submit" disabled={loggingIn}>
+                                    {loggingIn ? "Logging in..." : "LOG IN"}
+                                </button>
+                            </form>
+
+                            <p className="modal-bottom">
+                                New to PairPerfect?{" "}
+                                <Link to="/register" onClick={() => setShowLoginModal(false)}>
+                                    Register Free Today
+                                </Link>
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* ================= 7. BIO-DATA DETAILS MODAL ================= */}
+                {selectedProfile && (
+                    <div className="modal-backdrop" onClick={() => setSelectedProfile(null)}>
+                        <div className="bio-modal-box" onClick={(e) => e.stopPropagation()}>
+                            <button className="close-btn" onClick={() => setSelectedProfile(null)}>✕</button>
+
+                            <div className="bio-head">
+                                <img src={selectedProfile.photoUrl} alt="" className="bio-avatar" />
+                                <div>
+                                    <div className="bio-verified-text">✓ 100% Verified Profile</div>
+                                    <h3>{selectedProfile.fullName}</h3>
+                                    <p>{calculateAge(selectedProfile.dob)} Years • {selectedProfile.occupation} • {selectedProfile.city}</p>
+                                </div>
+                            </div>
+
+                            <div className="bio-body">
+                                <div className="bio-desc">
+                                    <strong>About Candidate:</strong>
+                                    <p>{selectedProfile.about || "Traditional, well-cultured and looking for a compatible life companion."}</p>
+                                </div>
+
+                                <div className="bio-stats">
+                                    <div><span>Community:</span> <strong>{selectedProfile.religion} ({selectedProfile.caste})</strong></div>
+                                    <div><span>Diet Preference:</span> <strong>{selectedProfile.diet}</strong></div>
+                                    <div><span>Marital Status:</span> <strong>{selectedProfile.maritalStatus}</strong></div>
+                                    <div><span>Annual Package:</span> <strong>{selectedProfile.annualIncome}</strong></div>
+                                    <div><span>Education:</span> <strong>{selectedProfile.education}</strong></div>
+                                    <div><span>Current City:</span> <strong>{selectedProfile.city}, {selectedProfile.state}</strong></div>
+                                </div>
+                            </div>
+
+                            <button
+                                className={`btn-interest full ${connectedIds.includes(selectedProfile._id) ? "sent" : ""}`}
+                                onClick={() => toggleConnect(selectedProfile._id)}
+                            >
+                                {connectedIds.includes(selectedProfile._id) ? "✓ Request Sent Successfully" : "Send Express Interest 💌"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Footer Strip */}
+                <footer className="matrimony-footer">
+                    <p>© PairPerfect Matrimony — India's Premier Matchmaking Portal. All Rights Reserved.</p>
+                </footer>
+
+            </div>
+        </>
+    );
+}
+
+const homeStyles = `
+  /* ================= ROOT & RESETS ================= */
+  :root {
+    --maroon: #7c0a2b;
+    --maroon-dark: #5b0720;
+    --maroon-light: #9b1c3e;
+    --golden: #c59b27;
+    --golden-light: #e5b94c;
+    --golden-soft: #fcf8ee;
+    --golden-border: #eedbb2;
+    --text-dark: #222222;
+    --text-muted: #666666;
+    --bg-light: #fbf9f6;
+  }
+
+  .home-layout {
+    min-height: 100vh;
+    background: var(--bg-light);
+    color: var(--text-dark);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+
+  /* 1. TOP COMMUNITY STRIP */
+  .top-community-bar {
+    background: #fdfaf3;
+    border-bottom: 1px solid #ebd9bf;
+    padding: 6px 16px;
+    font-size: 11px;
+    text-align: center;
+    color: #6d5b4a;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .community-list span {
+    cursor: pointer;
+    margin: 0 4px;
+    transition: color 0.2s;
+  }
+  .community-list span:hover {
+    color: var(--maroon);
+    font-weight: 600;
+  }
+
+  /* 2. NAVBAR */
+  .navbar {
+    background: #ffffff;
+    border-bottom: 2px solid var(--golden-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 14px rgba(124, 10, 43, 0.05);
+  }
+  .nav-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand-logo {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--maroon);
+    letter-spacing: -0.5px;
+  }
+  .logo-symbol { margin-right: 2px; }
+  .golden-text { color: var(--golden); }
+  .logo-sub {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--golden);
+    font-weight: 700;
+    margin-top: -3px;
+  }
+
+  .nav-search {
+    flex: 1;
+    max-width: 420px;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .nav-search .search-icon {
+    position: absolute;
+    left: 12px;
+    font-size: 14px;
+    color: #999;
+  }
+  .nav-search input {
+    width: 100%;
+    padding: 9px 12px 9px 36px;
+    background: #fffdfa;
+    border: 1.5px solid var(--golden-border);
+    border-radius: 25px;
+    color: #333;
+    outline: none;
+    font-size: 13px;
+    transition: 0.2s ease;
+  }
+  .nav-search input:focus {
+    border-color: var(--maroon);
+    box-shadow: 0 0 0 3px rgba(124, 10, 43, 0.1);
+  }
+
+  .nav-actions { display: flex; align-items: center; gap: 14px; }
+  .member-label { font-size: 13px; color: #555; }
+
+  .btn-nav-login {
+    background: transparent;
+    color: var(--maroon);
+    border: 1.5px solid var(--maroon);
+    padding: 7px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .btn-nav-login:hover {
+    background: var(--maroon);
+    color: #ffffff;
+  }
+
+  .btn-nav-register {
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-light) 100%);
+    color: white;
+    text-decoration: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 3px 10px rgba(124, 10, 43, 0.25);
+    transition: 0.2s;
+  }
+  .btn-nav-register:hover {
+    background: linear-gradient(135deg, var(--maroon-dark) 0%, var(--maroon) 100%);
+    box-shadow: 0 4px 14px rgba(124, 10, 43, 0.4);
+  }
+
+  .nav-user-badge {
+    color: var(--maroon);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    background: var(--golden-soft);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--golden-border);
+  }
+  .btn-logout {
+    background: #fff;
+    border: 1px solid #e57373;
+    color: #d32f2f;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  /* 3. HERO SECTION (BHARATMATRIMONY STYLE) */
+  .hero-section {
+    background: radial-gradient(circle at 10% 20%, #fffcf8 0%, #fbf5e8 90%);
+    border-bottom: 2px solid var(--golden-border);
+    padding: 48px 20px 40px;
+    position: relative;
+  }
+  .hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+  }
+  .hero-left {
+    flex: 1.2;
+  }
+  .trust-badge-pill {
+    display: inline-block;
+    background: var(--golden-soft);
+    color: var(--maroon);
+    border: 1px solid var(--golden);
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 6px rgba(197, 155, 39, 0.15);
+  }
+  .hero-heading {
+    font-size: 40px;
+    line-height: 1.2;
+    color: #1a1a1a;
+    font-weight: 800;
+    margin: 0 0 16px;
+  }
+  .highlight-maroon {
+    color: var(--maroon);
+    position: relative;
+    border-bottom: 3px solid var(--golden);
+  }
+  .hero-subtext {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #555555;
+    margin-bottom: 28px;
+    max-width: 580px;
+  }
+  .hero-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: #ffffff;
+    border: 1px solid var(--golden-border);
+    padding: 14px 20px;
+    border-radius: 12px;
+    width: fit-content;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  }
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+  }
+  .stat-number {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--maroon);
+  }
+  .stat-label {
+    font-size: 11px;
+    color: #666;
+    font-weight: 500;
+  }
+  .stat-divider {
+    width: 1px;
+    height: 30px;
+    background: #e5d8c3;
+  }
+
+  /* Right Side Form Card */
+  .hero-right {
+    flex: 0.9;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .matrimony-form-card {
+    background: #ffffff;
+    border: 2px solid var(--golden-border);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 390px;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(124, 10, 43, 0.12);
+  }
+  .form-card-header {
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-light) 100%);
+    padding: 16px 20px;
+    color: #ffffff;
+    text-align: center;
+    border-bottom: 3px solid var(--golden);
+  }
+  .form-card-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+  }
+  .form-card-header p {
+    margin: 3px 0 0;
+    font-size: 12px;
+    color: #f7dfa3;
+  }
+  .form-card-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .card-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .card-input-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+  }
+  .matrimony-select {
+    padding: 10px 12px;
+    border: 1.5px solid #d9cdb8;
+    border-radius: 8px;
+    background: #fffdf9;
+    font-size: 14px;
+    color: #222;
+    outline: none;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .matrimony-select:focus {
+    border-color: var(--maroon);
+  }
+  .btn-register-cta {
+    background: linear-gradient(135deg, #d9531e 0%, #c43e08 100%);
+    color: #ffffff;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(217, 83, 30, 0.3);
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+    transition: 0.2s;
+  }
+  .btn-register-cta:hover {
+    background: linear-gradient(135deg, #b83602 0%, #9e2e01 100%);
+  }
+  .card-disclaimer {
+    font-size: 10px;
+    color: #888;
+    text-align: center;
+    margin: 0;
+  }
+
+  /* 4. FILTER CONTROLS STRIP */
+  .filter-controls-section {
+    background: #ffffff;
+    border-bottom: 1px solid #ebd9bf;
+  }
+  .filters-strip {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .filter-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--maroon);
+  }
+  .filter-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--golden-soft);
+    border: 1px solid var(--golden-border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+  }
+  .filter-pill label {
+    font-weight: 600;
+    color: #5d4c38;
+  }
+  .filter-pill select {
+    background: transparent;
+    color: var(--maroon);
+    border: none;
+    outline: none;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-reset {
+    background: #fff;
+    border: 1px solid #ccaa88;
+    color: var(--maroon);
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: 0.2s;
+  }
+  .btn-reset:hover {
+    background: var(--maroon);
+    color: #fff;
+  }
+
+  /* 5. MATCHES GRID SECTION */
+  .matches-wrapper {
+    max-width: 1200px;
+    margin: 36px auto 60px;
+    padding: 0 20px;
+  }
+  .matches-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--golden-border);
+    padding-bottom: 14px;
+  }
+  .section-title-box h2 {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--maroon);
+    margin: 0;
+  }
+  .section-subheading {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #666;
+  }
+  .status-tag {
+    background: var(--golden-soft);
+    border: 1px solid var(--golden-border);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--maroon);
+    font-weight: 700;
+  }
+
+  .profiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 24px;
+  }
+  .profile-card {
+    background: #ffffff;
+    border: 1.5px solid #ebd9bf;
+    border-radius: 14px;
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  }
+  .profile-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--golden);
+    box-shadow: 0 12px 24px rgba(124, 10, 43, 0.12);
+  }
+  .card-img-box {
+    position: relative;
+    height: 240px;
+    background: #f0e6d6;
+  }
+  .card-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .badge-just-joined {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: linear-gradient(135deg, #d4af37, #b8860b);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .gender-tag {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .gender-tag.female { color: #b8005b; }
+  .gender-tag.male { color: #0f52ba; }
+
+  .verified-corner-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(16, 185, 129, 0.92);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+
+  .card-details {
+    padding: 16px;
+  }
+  .name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-details h4 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  .age-pill {
+    background: var(--golden-soft);
+    color: var(--maroon);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--golden-border);
+  }
+  .vitals {
+    color: var(--maroon);
+    font-weight: 600;
+    font-size: 12.5px;
+    margin: 4px 0 10px;
+  }
+  .meta-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12.5px;
+    color: #555555;
+    margin-bottom: 16px;
+    background: #fdfaf5;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #f2e6d2;
+  }
+  .meta-icon { margin-right: 4px; }
+  .card-btns {
+    display: flex;
+    gap: 8px;
+  }
+  .btn-interest {
+    flex: 1;
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-light) 100%);
+    color: #ffffff;
+    border: none;
+    padding: 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
+    transition: 0.2s;
+  }
+  .btn-interest:hover {
+    background: linear-gradient(135deg, var(--maroon-dark) 0%, var(--maroon) 100%);
+  }
+  .btn-interest.sent {
+    background: #0f8a5f;
+  }
+  .btn-bio {
+    background: #ffffff;
+    border: 1.5px solid var(--golden);
+    color: var(--maroon);
+    padding: 9px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 700;
+    transition: 0.2s;
+  }
+  .btn-bio:hover {
+    background: var(--golden-soft);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid var(--golden-border);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; display: inline-block; }
+
+  /* 6. MODALS (MAROON & GOLDEN THEME) */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 5, 12, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 20px;
+  }
+  .login-modal-box {
+    background: #ffffff;
+    border: 2px solid var(--golden-border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 400px;
+    padding: 30px 24px;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  }
+  .close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: #f7ede2;
+    border: none;
+    color: var(--maroon);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  .modal-title {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .modal-icon { font-size: 26px; }
+  .modal-title h2 {
+    margin: 4px 0 4px;
+    font-size: 22px;
+    color: var(--maroon);
+    font-weight: 800;
+  }
+  .modal-title p {
+    margin: 0;
+    color: #666;
+    font-size: 13px;
+  }
+  .modal-error {
+    background: #fde8e8;
+    border: 1px solid #f8b4b4;
+    color: #9b1c1c;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .input-box {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    text-align: left;
+  }
+  .input-box label {
+    font-size: 12px;
+    color: #444;
+    font-weight: 600;
+  }
+  .input-box input {
+    background: #fffdfa;
+    border: 1.5px solid #d9cdb8;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #222;
+    font-size: 14px;
+    outline: none;
+  }
+  .input-box input:focus {
+    border-color: var(--maroon);
+  }
+  .btn-modal-submit {
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-light) 100%);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 6px;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
+  .modal-bottom {
+    text-align: center;
+    font-size: 13px;
+    color: #666;
+    margin: 16px 0 0;
+  }
+  .modal-bottom a {
+    color: var(--maroon);
+    text-decoration: underline;
+    font-weight: 700;
+  }
+
+  /* Bio-Data Modal */
+  .bio-modal-box {
+    background: #ffffff;
+    border: 2px solid var(--golden-border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 500px;
+    padding: 24px;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+  }
+  .bio-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #f0e2cf;
+    padding-bottom: 14px;
+  }
+  .bio-avatar {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--golden);
+  }
+  .bio-verified-text {
+    font-size: 10px;
+    font-weight: 800;
+    color: #0f8a5f;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .bio-head h3 {
+    margin: 2px 0;
+    font-size: 20px;
+    color: var(--maroon);
+  }
+  .bio-head p {
+    margin: 0;
+    font-size: 13px;
+    color: #666;
+  }
+  .bio-desc {
+    font-size: 13px;
+    color: #444;
+    margin-bottom: 14px;
+  }
+  .bio-desc strong {
+    color: var(--maroon);
+  }
+  .bio-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: var(--golden-soft);
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 18px;
+    border: 1px solid var(--golden-border);
+  }
+  .bio-stats span {
+    color: #777;
+    font-size: 12px;
+  }
+  .bio-stats strong {
+    color: #222;
+  }
+  .btn-interest.full {
+    width: 100%;
+    padding: 12px;
+  }
+
+  /* Footer */
+  .matrimony-footer {
+    background: #ffffff;
+    border-top: 1px solid #ebd9bf;
+    padding: 20px;
+    text-align: center;
+    font-size: 12px;
+    color: #777;
+  }
+
+  /* Responsive Rules */
+  @media(max-width: 900px) {
+    .hero-container {
+      flex-direction: column;
+      gap: 30px;
+    }
+    .hero-right {
+      width: 100%;
+      justify-content: center;
+    }
+    .matrimony-form-card {
+      max-width: 100%;
+    }
+    .hero-heading {
+      font-size: 30px;
+    }
+    .nav-search {
+      display: none;
+    }
+  }
+`;

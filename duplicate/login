@@ -1,0 +1,411 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
+
+export default function Login() {
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { saveAuth } = useAuth();
+  const navigate = useNavigate();
+
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const { data } = await api.post("/auth/login", form);
+      saveAuth(data);
+      // यदि प्रोफाइल नहीं बनी है तो create-profile पर, अन्यथा dashboard पर भेजें
+      navigate(data.user?.profileCreated ? "/dashboard" : "/create-profile");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Invalid email or password. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <style>{loginStyles}</style>
+      <div className="login-page">
+        {/* Top Navbar / Header with Rings Logo */}
+        <header className="login-nav">
+          <Link to="/" className="brand-logo">
+            <svg className="logo-rings" viewBox="0 0 44 28" aria-hidden="true">
+              <circle cx="15" cy="15" r="10" />
+              <circle cx="29" cy="15" r="10" />
+              <path d="M22 2 L25 6.5 L22 11 L19 6.5 Z" />
+            </svg>
+            <span className="brand-text">
+              <span className="brand-name">
+                Pair<b>Perfect</b>
+              </span>
+              <small className="logo-sub">Pavitra Rishtey</small>
+            </span>
+          </Link>
+          <Link to="/" className="btn-back-home">
+            ← Back to Home
+          </Link>
+        </header>
+
+        {/* Center Container matching Home.jsx Modal / Card */}
+        <div className="login-center">
+          <div className="sheet login-modal-box">
+            <Link to="/" className="close-btn" aria-label="Go to Home">
+              ✕
+            </Link>
+
+            <div className="modal-title">
+              <span className="ganesh">॥ श्री गणेशाय नमः ॥</span>
+              <span className="modal-icon">🌸</span>
+              <h2>Welcome Back</h2>
+              <p>Sign in to your PairPerfect account</p>
+            </div>
+
+            {error && <div className="modal-error">{error}</div>}
+
+            <form onSubmit={handleSubmit} className="modal-form">
+              <div className="input-box">
+                <label htmlFor="login-email">Registered Email</label>
+                <input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  placeholder="yourname@gmail.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="input-box">
+                <label htmlFor="login-password">Password</label>
+                <input
+                  id="login-password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn-modal-submit"
+                disabled={loading}
+              >
+                {loading ? "Signing in..." : "Log In ✦"}
+              </button>
+            </form>
+
+            <p className="modal-bottom">
+              New to PairPerfect?{" "}
+              <Link to="/register">Register free today</Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Footer matching Home.jsx */}
+        <footer className="matrimony-footer">
+          <p>© PairPerfect Matrimony — India's Premier Matchmaking Portal. All Rights Reserved.</p>
+        </footer>
+      </div>
+    </>
+  );
+}
+
+const loginStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Yatra+One&display=swap');
+
+  .login-page {
+    --night: #1f0210;
+    --wine: #4a0418;
+    --maroon: #7c0a2b;
+    --gold: #d4a72c;
+    --gold-2: #f2cf6b;
+    --gold-line: rgba(212, 167, 44, 0.35);
+    --ivory: #fff7e6;
+    --ivory-2: #f6e8c8;
+    --ink: #2b1118;
+    --ink-soft: #6b525a;
+    --display: 'Yatra One', 'Tiro Devanagari Hindi', Georgia, serif;
+    --body: 'Hind', 'Segoe UI', system-ui, sans-serif;
+
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: var(--body);
+    color: var(--ivory);
+    background:
+      radial-gradient(circle at 1px 1px, rgba(212, 167, 44, 0.12) 1px, transparent 0) 0 0 / 26px 26px,
+      var(--night);
+    box-sizing: border-box;
+  }
+
+  .login-page *, .login-page *::before, .login-page *::after {
+    box-sizing: border-box;
+  }
+
+  /* Header */
+  .login-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    background: rgba(31, 2, 16, 0.85);
+    border-bottom: 1px solid var(--gold-line);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--ivory);
+  }
+  .logo-rings {
+    width: 44px;
+    height: 28px;
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 1.6;
+  }
+  .logo-rings path {
+    fill: var(--gold-2);
+    stroke: none;
+  }
+  .brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+  }
+  .brand-name {
+    font-family: var(--display);
+    font-size: 24px;
+  }
+  .brand-name b {
+    font-weight: 400;
+    color: var(--gold-2);
+  }
+  .logo-sub {
+    font-size: 11px;
+    color: var(--gold);
+    margin-top: 3px;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-back-home {
+    color: var(--gold-2);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border: 1px solid var(--gold-line);
+    border-radius: 999px;
+    transition: background 0.2s, color 0.2s;
+  }
+  .btn-back-home:hover {
+    background: var(--gold);
+    color: #3a0618;
+  }
+
+  /* Center Box (Exact Home.jsx Sheet Design) */
+  .login-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    flex: 1;
+  }
+
+  .sheet {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    background: var(--ivory);
+    color: var(--ink);
+    border: 2px solid var(--gold);
+    border-radius: 50% 50% 22px 22px / 36px 36px 22px 22px;
+    box-shadow: 0 0 0 5px rgba(212, 167, 44, 0.2), 0 24px 60px rgba(0, 0, 0, 0.5);
+    padding: 42px 28px 30px;
+    animation: pop 0.28s ease both;
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 24px;
+    right: 18px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ivory-2);
+    color: var(--maroon);
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .close-btn:hover {
+    background: #ecd7a6;
+  }
+
+  .modal-title {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .ganesh {
+    display: block;
+    font-family: var(--display);
+    font-size: 14px;
+    color: var(--maroon);
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+  }
+  .modal-icon {
+    font-size: 26px;
+    display: inline-block;
+    margin-bottom: 2px;
+  }
+  .modal-title h2 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 28px;
+    margin: 2px 0 4px;
+    color: var(--maroon);
+  }
+  .modal-title p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+
+  .modal-error {
+    background: #fde8e8;
+    border: 1px solid #f8b4b4;
+    color: #9b1c1c;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .input-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+  }
+  .input-box label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .input-box input {
+    padding: 11px 12px;
+    border: 1.5px solid #dcc58f;
+    border-radius: 10px;
+    background: #fffdf7;
+    color: var(--ink);
+    font-size: 15px;
+    outline: none;
+    font-family: var(--body);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-box input:focus {
+    border-color: var(--maroon);
+    box-shadow: 0 0 0 2px rgba(124, 10, 43, 0.15);
+  }
+
+  .btn-modal-submit {
+    margin-top: 6px;
+    padding: 13px;
+    border: 1px solid var(--gold);
+    border-radius: 10px;
+    background: var(--maroon);
+    color: var(--ivory);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(124, 10, 43, 0.25);
+    transition: background 0.2s, filter 0.2s;
+  }
+  .btn-modal-submit:hover {
+    background: var(--wine);
+    filter: brightness(1.05);
+  }
+  .btn-modal-submit:disabled {
+    opacity: 0.7;
+    cursor: wait;
+  }
+
+  .modal-bottom {
+    text-align: center;
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin: 18px 0 0;
+  }
+  .modal-bottom a {
+    color: var(--maroon);
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  /* Footer */
+  .matrimony-footer {
+    background: #14010a;
+    border-top: 1px solid var(--gold-line);
+    padding: 18px 20px;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255, 247, 230, 0.6);
+  }
+  .matrimony-footer p {
+    margin: 0;
+  }
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .sheet {
+      padding: 36px 20px 24px;
+      border-radius: 36px 36px 18px 18px;
+    }
+    .modal-title h2 {
+      font-size: 24px;
+    }
+  }
+`;

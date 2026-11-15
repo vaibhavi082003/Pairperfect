@@ -1,0 +1,1387 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
+
+/* ------------------------------------------------------------------
+   🎬 HERO SCENES
+   Photos ki jagah ab background shaadi ki 4 rasmon ke hisaab se badalta hai:
+   Haldi → Mehendi → Sangeet → Pheras. Koi external image nahi, isliye
+   kabhi "load nahi hua" wali problem nahi aayegi.
+------------------------------------------------------------------- */
+const SCENE_MS = 6000;
+
+const HERO_SCENES = [
+    { key: "haldi", name: "Haldi", hindi: "हल्दी", line: "Peele rang mein ghule sapne", a: "#2b0716", b: "#8a3a0b", glow: "#ffb703" },
+    { key: "mehendi", name: "Mehendi", hindi: "मेहंदी", line: "Haathon par rachti nayi kahani", a: "#04201a", b: "#1c5a34", glow: "#a7d65a" },
+    { key: "sangeet", name: "Sangeet", hindi: "संगीत", line: "Dhol, geet aur do parivaaron ka milan", a: "#1b0636", b: "#7a0f55", glow: "#ff6fae" },
+    { key: "pheras", name: "Pheras", hindi: "फेरे", line: "Saat vachan, saat janam ka saath", a: "#3d0414", b: "#a3122f", glow: "#ffd166" },
+];
+
+const PETAL_COLORS = ["#ffb703", "#fb8500", "#ff7b54", "#ffd166", "#e63946"];
+const PETALS = Array.from({ length: 18 }, (_, i) => ({
+    left: (i * 37 + 9) % 100,
+    size: 9 + ((i * 5) % 11),
+    dur: 11 + ((i * 7) % 9),
+    delay: -((i * 3.1) % 16),
+    color: PETAL_COLORS[i % PETAL_COLORS.length],
+}));
+
+const COMMUNITIES = ["Hindi", "Punjabi", "Bengali", "Gujarati", "Marathi", "Marwadi", "Kannada", "Tamil", "Telugu", "Malayalam", "Sindhi", "Oriya"];
+const RELIGIONS = ["All", "Hindu", "Sikh", "Muslim", "Christian"];
+const GENDER_OPTIONS = [["All", "All profiles"], ["Female", "Brides"], ["Male", "Grooms"]];
+
+// Rich Dummy Profiles (Dono Male aur Female)
+const ALL_DUMMY_PROFILES = [
+    {
+        _id: "demo1", fullName: "Pooja Sharma", gender: "Female", dob: "2001-05-14", height: 165,
+        religion: "Hindu", caste: "Brahmin", city: "Mumbai", state: "Maharashtra",
+        education: "MBA in Finance", occupation: "Financial Analyst", annualIncome: "12 LPA",
+        maritalStatus: "Never Married", diet: "Vegetarian",
+        about: "Ambitious, modern yet rooted in cultural values.",
+        photoUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=80",
+        createdAt: new Date().toISOString()
+    },
+    {
+        _id: "demo2", fullName: "Neha Verma", gender: "Female", dob: "1999-11-20", height: 162,
+        religion: "Hindu", caste: "Kshatriya", city: "Delhi", state: "Delhi",
+        education: "B.Tech in CS", occupation: "Software Engineer", annualIncome: "18 LPA",
+        maritalStatus: "Never Married", diet: "Non-Vegetarian",
+        about: "Tech enthusiast who loves coffee, painting, and traveling.",
+        photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo3", fullName: "Aman Kapoor", gender: "Male", dob: "1998-04-12", height: 178,
+        religion: "Hindu", caste: "Punjabi", city: "Bangalore", state: "Karnataka",
+        education: "M.Tech", occupation: "Product Manager", annualIncome: "24 LPA",
+        maritalStatus: "Never Married", diet: "Vegetarian",
+        about: "Fitness lover, avid reader, looking for a progressive partner.",
+        photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
+        createdAt: new Date().toISOString()
+    },
+    {
+        _id: "demo4", fullName: "Rohan Kulkarni", gender: "Male", dob: "1997-08-05", height: 182,
+        religion: "Hindu", caste: "Maratha", city: "Pune", state: "Maharashtra",
+        education: "MBBS, MD", occupation: "Doctor", annualIncome: "20 LPA",
+        maritalStatus: "Never Married", diet: "Non-Vegetarian",
+        about: "Dedicated healthcare professional who enjoys photography.",
+        photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo5", fullName: "Simran Kaur", gender: "Female", dob: "2000-02-18", height: 168,
+        religion: "Sikh", caste: "Arora", city: "Chandigarh", state: "Punjab",
+        education: "Chartered Accountant", occupation: "Senior Auditor", annualIncome: "15 LPA",
+        maritalStatus: "Never Married", diet: "Vegetarian",
+        about: "Positive, friendly and family-oriented person.",
+        photoUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80"
+    },
+    {
+        _id: "demo6", fullName: "Vikram Rathore", gender: "Male", dob: "1996-09-30", height: 180,
+        religion: "Hindu", caste: "Rajput", city: "Jaipur", state: "Rajasthan",
+        education: "B.Arch", occupation: "Architect & Interior Designer", annualIncome: "16 LPA",
+        maritalStatus: "Never Married", diet: "Vegetarian",
+        about: "Passionate about sustainable architecture and arts.",
+        photoUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400&auto=format&fit=crop&q=80"
+    }
+];
+
+/* ---------- Small presentational helpers ---------- */
+
+// Mandala banta hai SVG se (koi image nahi) — hero ke peeche dheere ghoomta hai
+function Mandala({ className }) {
+    return (
+        <svg className={className} viewBox="-200 -200 400 400" aria-hidden="true">
+            <g fill="none" stroke="currentColor" strokeWidth="0.7">
+                <circle r="196" />
+                <circle r="186" strokeDasharray="1.5 5" />
+                <circle r="118" />
+                <circle r="68" />
+                <circle r="28" />
+                {Array.from({ length: 16 }).map((_, i) => (
+                    <g key={i} transform={`rotate(${i * 22.5})`}>
+                        <path d="M0 -120 C 26 -142 26 -168 0 -184 C -26 -168 -26 -142 0 -120Z" />
+                        <path d="M0 -70 C 12 -84 12 -102 0 -116 C -12 -102 -12 -84 0 -70Z" />
+                        <path d="M0 -30 L 8 -48 L 0 -66 L -8 -48 Z" />
+                    </g>
+                ))}
+            </g>
+        </svg>
+    );
+}
+
+// Photo load na ho to naam ke initials dikhao
+function Photo({ src, name }) {
+    const [failed, setFailed] = useState(false);
+    if (failed || !src) {
+        const initials = (name || "?").split(" ").map((w) => w[0]).slice(0, 2).join("");
+        return <div className="photo-fallback">{initials}</div>;
+    }
+    return <img src={src} alt={name} loading="lazy" onError={() => setFailed(true)} />;
+}
+
+export default function Home() {
+    const { user, logout, saveAuth } = useAuth();
+    const navigate = useNavigate();
+
+    const [myProfile, setMyProfile] = useState(null);
+    const [profiles, setProfiles] = useState(ALL_DUMMY_PROFILES);
+
+    // Hero scene state
+    const [currentSlide, setCurrentSlide] = useState(0);
+    const scene = HERO_SCENES[currentSlide];
+
+    // Navbar scroll state
+    const [scrolled, setScrolled] = useState(false);
+
+    // Search & Category Filters
+    const [search, setSearch] = useState("");
+    const [genderFilter, setGenderFilter] = useState("All");
+    const [religionFilter, setReligionFilter] = useState("All");
+
+    // Login Modal State
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+    const [loginError, setLoginError] = useState("");
+    const [loggingIn, setLoggingIn] = useState(false);
+
+    // Selected Profile for Bio-Data Modal
+    const [selectedProfile, setSelectedProfile] = useState(null);
+    const [connectedIds, setConnectedIds] = useState([]);
+
+    // Quick Hero Register State (Visual only)
+    const [heroProfileFor, setHeroProfileFor] = useState("Myself");
+
+    // ⏱️ Scene auto-change (tab click par timer reset hota hai)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setCurrentSlide((prev) => (prev + 1) % HERO_SCENES.length);
+        }, SCENE_MS);
+        return () => clearTimeout(timer);
+    }, [currentSlide]);
+
+    // Navbar ko scroll par gehra karo
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 24);
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, []);
+
+    // Esc dabane par modals band
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === "Escape") {
+                setShowLoginModal(false);
+                setSelectedProfile(null);
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, []);
+
+    // Logged-in user ki profile fetch karo
+    useEffect(() => {
+        if (user) {
+            api
+                .get("/profile/me")
+                .then((res) => setMyProfile(res.data))
+                .catch(() => { });
+        } else {
+            setMyProfile(null);
+        }
+    }, [user]);
+
+    // Login Modal Handler
+    const handleLoginSubmit = async (e) => {
+        e.preventDefault();
+        setLoginError("");
+        setLoggingIn(true);
+        try {
+            const { data } = await api.post("/auth/login", loginForm);
+            saveAuth(data);
+            setShowLoginModal(false);
+            setLoginForm({ email: "", password: "" });
+            if (!data.user.profileCreated) {
+                navigate("/create-profile");
+            }
+        } catch (err) {
+            setLoginError(err.response?.data?.message || "Invalid email or password");
+        } finally {
+            setLoggingIn(false);
+        }
+    };
+
+    const calculateAge = (dob) => {
+        if (!dob) return 24;
+        const born = new Date(dob);
+        const now = new Date();
+        let age = now.getFullYear() - born.getFullYear();
+        const beforeBirthday =
+            now.getMonth() < born.getMonth() ||
+            (now.getMonth() === born.getMonth() && now.getDate() < born.getDate());
+        if (beforeBirthday) age--;
+        return age;
+    };
+
+    const isNewUser = (createdAt) => {
+        if (!createdAt) return false;
+        const createdDate = new Date(createdAt);
+        const today = new Date();
+        const diffDays = (today - createdDate) / (1000 * 60 * 60 * 24);
+        return diffDays <= 7;
+    };
+
+    // 🔥 GENDER LOGIC:
+    const myGender = myProfile?.gender?.toLowerCase() || "";
+    const targetGender = myGender === "male" ? "female" : myGender === "female" ? "male" : null;
+
+    const filteredMatches = profiles.filter((p) => {
+        if (myProfile?._id && p._id === myProfile._id) return false;
+
+        if (user && targetGender) {
+            if (p.gender?.toLowerCase() !== targetGender) return false;
+        } else {
+            if (genderFilter !== "All" && p.gender !== genderFilter) return false;
+        }
+
+        const matchesSearch =
+            search === "" ||
+            p.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+            p.city?.toLowerCase().includes(search.toLowerCase()) ||
+            p.occupation?.toLowerCase().includes(search.toLowerCase());
+
+        const matchesReligion = religionFilter === "All" || p.religion === religionFilter;
+
+        return matchesSearch && matchesReligion;
+    });
+
+    const toggleConnect = (id) => {
+        if (!user) {
+            setShowLoginModal(true);
+            return;
+        }
+        setConnectedIds((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+        );
+    };
+
+    return (
+        <>
+            <style>{homeStyles}</style>
+            <div className="home-layout">
+
+                {/* ================= 1. COMMUNITY MARQUEE ================= */}
+                <div className="top-community-bar">
+                    <div className="marquee">
+                        {[...COMMUNITIES, ...COMMUNITIES].map((c, i) => (
+                            <span key={i}>{c}<em>✦</em></span>
+                        ))}
+                    </div>
+                </div>
+
+                {/* ================= 2. NAVBAR ================= */}
+                <header className={`navbar ${scrolled ? "scrolled" : ""}`}>
+                    <div className="nav-container">
+                        <Link to="/" className="brand-logo">
+                            <svg className="logo-rings" viewBox="0 0 44 28" aria-hidden="true">
+                                <circle cx="15" cy="15" r="10" />
+                                <circle cx="29" cy="15" r="10" />
+                                <path d="M22 2 L25 6.5 L22 11 L19 6.5 Z" />
+                            </svg>
+                            <span className="brand-text">
+                                <span className="brand-name">Pair<b>Perfect</b></span>
+                                <small className="logo-sub">Pavitra Rishtey</small>
+                            </span>
+                        </Link>
+
+                        <div className="nav-search">
+                            <span className="search-icon">🔍</span>
+                            <input
+                                type="text"
+                                placeholder="Search by name, city, profession..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="nav-actions">
+                            {user ? (
+                                <>
+                                    <Link to="/dashboard" className="nav-user-badge">
+                                        ✨ Namaste, {user.name}
+                                    </Link>
+                                    <button onClick={logout} className="btn-logout">
+                                        Logout
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="member-label">Already a member?</span>
+                                    <button onClick={() => setShowLoginModal(true)} className="btn-nav-login">
+                                        Log in
+                                    </button>
+                                    <Link to="/register" className="btn-nav-register">
+                                        Register free
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </header>
+
+                {/* ================= 3. HERO — CEREMONY SCENES ================= */}
+                <section
+                    className="hero-section"
+                    style={{ "--glow": scene.glow, "--ms": `${SCENE_MS}ms` }}
+                >
+                    <div className="hero-bg" aria-hidden="true">
+                        {HERO_SCENES.map((s, i) => (
+                            <div
+                                key={s.key}
+                                className={`scene ${currentSlide === i ? "on" : ""}`}
+                                style={{ "--a": s.a, "--b": s.b, "--glow": s.glow, "--gs": `${s.glow}4d` }}
+                            >
+                                <i className="blob blob1" />
+                                <i className="blob blob2" />
+                            </div>
+                        ))}
+
+                        <Mandala className="mandala m-big" />
+                        <Mandala className="mandala m-small" />
+                        <div className="hero-shade" />
+                        <div className="grain" />
+
+                        {PETALS.map((p, i) => (
+                            <i
+                                key={i}
+                                className="petal"
+                                style={{
+                                    left: `${p.left}%`,
+                                    width: p.size,
+                                    height: p.size,
+                                    background: p.color,
+                                    animationDuration: `${p.dur}s`,
+                                    animationDelay: `${p.delay}s`,
+                                }}
+                            />
+                        ))}
+
+                        <div className="hero-watermark" key={scene.key}>{scene.hindi}</div>
+                    </div>
+
+                    <div className="hero-container">
+                        {/* Left */}
+                        <div className="hero-left">
+                            <h1 className="hero-heading">
+                                Dil se dil tak,<br />ek pavitra rishta.
+                            </h1>
+                            <p className="hero-subtext">
+                                India's most trusted matrimony service. Celebrate life together with
+                                verified brides and grooms from cultured and respected families across India.
+                            </p>
+
+                            
+                            <p className="scene-line" key={`line-${scene.key}`}>{scene.line}</p>
+                            <div className="scene-tabs" role="tablist" aria-label="Wedding ceremonies">
+                                {HERO_SCENES.map((s, i) => (
+                                    <button
+                                        key={s.key}
+                                        role="tab"
+                                        aria-selected={currentSlide === i}
+                                        className={`scene-tab ${currentSlide === i ? "on" : ""}`}
+                                        onClick={() => setCurrentSlide(i)}
+                                    >
+                                        <span className="st-hindi">{s.hindi}</span>
+                                        <span className="st-name">{s.name}</span>
+                                        <span className="st-bar"><i /></span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Right: invitation card */}
+                        <div className="hero-right">
+                            <div className="invite-card">
+                                <div className="invite-head">
+                                    <span className="ganesh">॥ श्री गणेशाय नमः ॥</span>
+                                    <h3>Create a matrimony profile</h3>
+                                    <p>Find your soulmate today</p>
+                                </div>
+
+                                <div className="invite-body">
+                                    <div className="card-input-group">
+                                        <label htmlFor="profileFor">Profile created for</label>
+                                        <select
+                                            id="profileFor"
+                                            value={heroProfileFor}
+                                            onChange={(e) => setHeroProfileFor(e.target.value)}
+                                            className="matrimony-select"
+                                        >
+                                            <option value="Myself">Myself</option>
+                                            <option value="Son">My Son</option>
+                                            <option value="Daughter">My Daughter</option>
+                                            <option value="Brother">My Brother</option>
+                                            <option value="Sister">My Sister</option>
+                                            <option value="Friend">Relative / Friend</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="card-input-group">
+                                        <label htmlFor="lookingFor">Looking for</label>
+                                        <select
+                                            id="lookingFor"
+                                            value={genderFilter}
+                                            onChange={(e) => setGenderFilter(e.target.value)}
+                                            className="matrimony-select"
+                                        >
+                                            <option value="All">Bride or Groom (All)</option>
+                                            <option value="Female">Bride (Female)</option>
+                                            <option value="Male">Groom (Male)</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="card-input-group">
+                                        <label htmlFor="community">Community / Religion</label>
+                                        <select
+                                            id="community"
+                                            value={religionFilter}
+                                            onChange={(e) => setReligionFilter(e.target.value)}
+                                            className="matrimony-select"
+                                        >
+                                            <option value="All">All Religions</option>
+                                            <option value="Hindu">Hindu</option>
+                                            <option value="Sikh">Sikh</option>
+                                            <option value="Muslim">Muslim</option>
+                                            <option value="Christian">Christian</option>
+                                        </select>
+                                    </div>
+
+                                    <button
+                                        onClick={() => {
+                                            if (user) {
+                                                navigate("/dashboard");
+                                            } else {
+                                                navigate("/register");
+                                            }
+                                        }}
+                                        className="btn-register-cta"
+                                    >
+                                        {user ? "Go to my dashboard" : "Create my free profile"}
+                                    </button>
+
+                                    <p className="card-disclaimer">
+                                        By registering, you agree to our <u>Terms</u> and <u>Privacy Policy</u>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="hero-scallop" />
+                </section>
+
+                {/* ================= 4. FILTERS ================= */}
+                <section className="filter-controls-section">
+                    <div className="filters-strip">
+                        {!user && (
+                            <div className="filter-group">
+                                <span className="filter-label">Show</span>
+                                {GENDER_OPTIONS.map(([value, label]) => (
+                                    <button
+                                        key={value}
+                                        className={`chip ${genderFilter === value ? "on" : ""}`}
+                                        onClick={() => setGenderFilter(value)}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="filter-group">
+                            <span className="filter-label">Religion</span>
+                            {RELIGIONS.map((r) => (
+                                <button
+                                    key={r}
+                                    className={`chip ${religionFilter === r ? "on" : ""}`}
+                                    onClick={() => setReligionFilter(r)}
+                                >
+                                    {r === "All" ? "All religions" : r}
+                                </button>
+                            ))}
+                        </div>
+
+                        {(search || religionFilter !== "All" || genderFilter !== "All") && (
+                            <button
+                                className="btn-reset"
+                                onClick={() => {
+                                    setSearch("");
+                                    setGenderFilter("All");
+                                    setReligionFilter("All");
+                                }}
+                            >
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
+                </section>
+
+                {/* ================= 5. PROFILES ================= */}
+                <main className="matches-wrapper">
+                    <div className="matches-top">
+                        <div className="section-title-box">
+                            <h2 className="section-heading">Featured verified profiles</h2>
+                            <p className="section-subheading">Handpicked and verified prospects ready for marriage</p>
+                        </div>
+                        <span className="status-tag">
+                            {user && targetGender
+                                ? `Showing ${targetGender === "female" ? "brides" : "grooms"}`
+                                : `Showing ${filteredMatches.length} profiles`}
+                        </span>
+                    </div>
+
+                    {filteredMatches.length === 0 ? (
+                        <div className="empty-state">
+                            <span className="empty-icon">🕊️</span>
+                            <h3>No matching profiles found</h3>
+                            <p>Reset the religion or search filters to see more matches.</p>
+                        </div>
+                    ) : (
+                        <div className="profiles-grid">
+                            {filteredMatches.map((item) => {
+                                const isConnected = connectedIds.includes(item._id);
+                                return (
+                                    <article key={item._id} className="profile-card">
+                                        <div className="arch-wrap">
+                                            <div className="arch">
+                                                <div className="arch-in">
+                                                    <Photo src={item.photoUrl} name={item.fullName} />
+                                                </div>
+                                            </div>
+
+                                            {isNewUser(item.createdAt) && <span className="badge-new">New</span>}
+
+                                            <span className={`role-tag ${item.gender.toLowerCase()}`}>
+                                                {item.gender === "Female" ? "Bride" : "Groom"}
+                                            </span>
+                                            <span className="seal">✓ Verified</span>
+                                        </div>
+
+                                        <div className="card-details">
+                                            <div className="name-row">
+                                                <h4>{item.fullName}</h4>
+                                                <span className="age-pill">{calculateAge(item.dob)} yrs</span>
+                                            </div>
+
+                                            <p className="vitals">
+                                                {item.height} cm, {item.religion} ({item.caste})
+                                            </p>
+
+                                            <div className="meta-lines">
+                                                <div><span className="meta-icon">🎓</span>{item.education}</div>
+                                                <div><span className="meta-icon">💼</span>{item.occupation}, <strong>{item.annualIncome}</strong></div>
+                                                <div><span className="meta-icon">📍</span>{item.city}, {item.state}</div>
+                                            </div>
+
+                                            <div className="card-btns">
+                                                <button
+                                                    className={`btn-interest ${isConnected ? "sent" : ""}`}
+                                                    onClick={() => toggleConnect(item._id)}
+                                                >
+                                                    {isConnected ? "✓ Request sent" : "Connect now"}
+                                                </button>
+                                                <button className="btn-bio" onClick={() => setSelectedProfile(item)}>
+                                                    View bio
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    )}
+                </main>
+
+                {/* ================= 6. LOGIN MODAL ================= */}
+                {showLoginModal && (
+                    <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
+                        <div
+                            className="sheet login-modal-box"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Log in"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button className="close-btn" aria-label="Close" onClick={() => setShowLoginModal(false)}>✕</button>
+
+                            <div className="modal-title">
+                                <span className="modal-icon">🌸</span>
+                                <h2>Welcome back</h2>
+                                <p>Sign in to your PairPerfect account</p>
+                            </div>
+
+                            {loginError && <div className="modal-error">{loginError}</div>}
+
+                            <form onSubmit={handleLoginSubmit} className="modal-form">
+                                <div className="input-box">
+                                    <label>Registered email</label>
+                                    <input
+                                        type="email"
+                                        placeholder="yourname@gmail.com"
+                                        value={loginForm.email}
+                                        onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="input-box">
+                                    <label>Password</label>
+                                    <input
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={loginForm.password}
+                                        onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <button type="submit" className="btn-modal-submit" disabled={loggingIn}>
+                                    {loggingIn ? "Logging in..." : "Log in"}
+                                </button>
+                            </form>
+
+                            <p className="modal-bottom">
+                                New to PairPerfect?{" "}
+                                <Link to="/register" onClick={() => setShowLoginModal(false)}>
+                                    Register free today
+                                </Link>
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* ================= 7. BIO-DATA MODAL ================= */}
+                {selectedProfile && (
+                    <div className="modal-backdrop" onClick={() => setSelectedProfile(null)}>
+                        <div
+                            className="sheet bio-modal-box"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label={`${selectedProfile.fullName} bio-data`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button className="close-btn" aria-label="Close" onClick={() => setSelectedProfile(null)}>✕</button>
+
+                            <div className="bio-head">
+                                <div className="bio-avatar-wrap">
+                                    <Photo src={selectedProfile.photoUrl} name={selectedProfile.fullName} />
+                                </div>
+                                <div>
+                                    <div className="bio-verified-text">✓ 100% verified profile</div>
+                                    <h3>{selectedProfile.fullName}</h3>
+                                    <p>{calculateAge(selectedProfile.dob)} years, {selectedProfile.occupation}, {selectedProfile.city}</p>
+                                </div>
+                            </div>
+
+                            <div className="bio-body">
+                                <div className="bio-desc">
+                                    <strong>About</strong>
+                                    <p>{selectedProfile.about || "Traditional, well-cultured and looking for a compatible life companion."}</p>
+                                </div>
+
+                                <div className="bio-stats">
+                                    <div><span>Community</span><strong>{selectedProfile.religion} ({selectedProfile.caste})</strong></div>
+                                    <div><span>Diet</span><strong>{selectedProfile.diet}</strong></div>
+                                    <div><span>Marital status</span><strong>{selectedProfile.maritalStatus}</strong></div>
+                                    <div><span>Annual package</span><strong>{selectedProfile.annualIncome}</strong></div>
+                                    <div><span>Education</span><strong>{selectedProfile.education}</strong></div>
+                                    <div><span>Current city</span><strong>{selectedProfile.city}, {selectedProfile.state}</strong></div>
+                                </div>
+                            </div>
+
+                            <button
+                                className={`btn-interest full ${connectedIds.includes(selectedProfile._id) ? "sent" : ""}`}
+                                onClick={() => toggleConnect(selectedProfile._id)}
+                            >
+                                {connectedIds.includes(selectedProfile._id) ? "✓ Request sent" : "Send interest 💌"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <footer className="matrimony-footer">
+                    <p>© PairPerfect Matrimony — India's Premier Matchmaking Portal. All Rights Reserved.</p>
+                </footer>
+            </div>
+        </>
+    );
+}
+
+const homeStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Yatra+One&display=swap');
+
+  .home-layout {
+    --night: #1f0210;
+    --wine: #4a0418;
+    --maroon: #7c0a2b;
+    --gold: #d4a72c;
+    --gold-2: #f2cf6b;
+    --gold-line: rgba(212, 167, 44, 0.35);
+    --ivory: #fff7e6;
+    --ivory-2: #f6e8c8;
+    --ink: #2b1118;
+    --ink-soft: #6b525a;
+    --display: 'Yatra One', 'Tiro Devanagari Hindi', Georgia, serif;
+    --body: 'Hind', 'Segoe UI', system-ui, sans-serif;
+
+    min-height: 100vh;
+    color: var(--ivory);
+    font-family: var(--body);
+    background:
+      radial-gradient(circle at 1px 1px, rgba(212, 167, 44, 0.12) 1px, transparent 0) 0 0 / 26px 26px,
+      var(--night);
+  }
+  .home-layout *, .home-layout *::before, .home-layout *::after { box-sizing: border-box; }
+  .home-layout button, .home-layout input, .home-layout select { font-family: var(--body); }
+  .home-layout :focus-visible { outline: 2px solid var(--gold-2); outline-offset: 2px; }
+
+  /* ---------- 1. COMMUNITY MARQUEE ---------- */
+  .top-community-bar {
+    background: #14010a;
+    border-bottom: 1px solid var(--gold-line);
+    padding: 7px 0;
+    font-size: 12.5px;
+    color: rgba(255, 247, 230, 0.72);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .marquee { display: inline-flex; animation: marq 45s linear infinite; }
+  .marquee:hover { animation-play-state: paused; }
+  .marquee span { padding: 0 16px; cursor: pointer; transition: color 0.2s; }
+  .marquee span:hover { color: var(--gold-2); }
+  .marquee em { font-style: normal; color: var(--gold); margin-left: 32px; font-size: 9px; }
+
+  /* ---------- 2. NAVBAR ---------- */
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(31, 2, 16, 0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--gold-line);
+    transition: background 0.3s;
+  }
+  .navbar.scrolled { background: rgba(31, 2, 16, 0.94); }
+  .nav-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ivory); }
+  .logo-rings { width: 44px; height: 28px; fill: none; stroke: var(--gold); stroke-width: 1.6; }
+  .logo-rings path { fill: var(--gold-2); stroke: none; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1; }
+  .brand-name { font-family: var(--display); font-size: 25px; }
+  .brand-name b { font-weight: 400; color: var(--gold-2); }
+  .logo-sub { font-size: 11.5px; color: var(--gold); margin-top: 3px; letter-spacing: 0.5px; }
+
+  .nav-search { flex: 1; max-width: 420px; position: relative; display: flex; align-items: center; }
+  .nav-search .search-icon { position: absolute; left: 12px; font-size: 13px; opacity: 0.7; }
+  .nav-search input {
+    width: 100%;
+    padding: 9px 12px 9px 36px;
+    background: rgba(255, 247, 230, 0.08);
+    border: 1px solid var(--gold-line);
+    border-radius: 999px;
+    color: var(--ivory);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .nav-search input::placeholder { color: rgba(255, 247, 230, 0.5); }
+  .nav-search input:focus { border-color: var(--gold-2); background: rgba(255, 247, 230, 0.12); }
+
+  .nav-actions { display: flex; align-items: center; gap: 12px; }
+  .member-label { font-size: 14px; color: rgba(255, 247, 230, 0.7); }
+  .btn-nav-login {
+    background: transparent;
+    color: var(--gold-2);
+    border: 1px solid var(--gold);
+    padding: 7px 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .btn-nav-login:hover { background: var(--gold); color: #3a0618; }
+  .btn-nav-register {
+    background: var(--gold);
+    color: #3a0618;
+    text-decoration: none;
+    padding: 8px 20px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    transition: filter 0.2s;
+  }
+  .btn-nav-register:hover { filter: brightness(1.1); }
+  .nav-user-badge {
+    color: var(--gold-2);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14.5px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--gold-line);
+  }
+  .btn-logout {
+    background: transparent;
+    border: 1px solid #e57373;
+    color: #ff9c9c;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .btn-logout:hover { background: rgba(229, 115, 115, 0.15); }
+
+  /* ---------- 3. HERO ---------- */
+  .hero-section {
+    position: relative;
+    isolation: isolate;
+    min-height: 680px;
+    padding: 64px 20px 92px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+  .hero-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: var(--night); }
+
+  .scene {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 1.8s ease;
+    background:
+      radial-gradient(65% 80% at 82% 28%, var(--gs), transparent 70%),
+      linear-gradient(125deg, var(--a) 0%, var(--b) 100%);
+  }
+  .scene.on { opacity: 1; }
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    background: var(--glow);
+    filter: blur(80px);
+    opacity: 0.26;
+    animation: drift 14s ease-in-out infinite alternate;
+  }
+  .scene:not(.on) .blob { animation-play-state: paused; }
+  .blob1 { width: 480px; height: 480px; top: -140px; left: -100px; }
+  .blob2 { width: 420px; height: 420px; bottom: -160px; right: 18%; opacity: 0.2; animation-duration: 18s; animation-delay: -6s; }
+
+  .mandala { position: absolute; color: var(--glow); transition: color 1.8s ease; pointer-events: none; }
+  .m-big {
+    width: min(980px, 120vw);
+    height: min(980px, 120vw);
+    right: -14%;
+    top: 50%;
+    opacity: 0.24;
+    transform: translateY(-50%);
+    animation: spin 120s linear infinite;
+  }
+  .m-small {
+    width: 560px;
+    height: 560px;
+    left: -9%;
+    bottom: -32%;
+    opacity: 0.14;
+    animation: spinrev 90s linear infinite;
+  }
+
+  .hero-shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(20, 1, 10, 0.6) 0%, rgba(20, 1, 10, 0.18) 55%, rgba(20, 1, 10, 0.38) 100%);
+  }
+  .grain {
+    position: absolute;
+    inset: 0;
+    opacity: 0.09;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E");
+  }
+
+  .petal {
+    position: absolute;
+    top: 0;
+    border-radius: 0 100% 0 100%;
+    opacity: 0;
+    animation: petal linear infinite;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+  }
+
+  .hero-watermark {
+    position: absolute;
+    z-index: 1;
+    left: 2%;
+    bottom: -3%;
+    font-family: var(--display);
+    font-size: clamp(130px, 24vw, 340px);
+    line-height: 1;
+    color: transparent;
+    -webkit-text-stroke: 1.5px rgba(255, 247, 230, 0.16);
+    animation: wm 1.2s ease both;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .hero-container {
+    position: relative;
+    z-index: 5;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .hero-left { min-width: 0; }
+  .hero-heading {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(42px, 6vw, 78px);
+    line-height: 1.1;
+    margin: 0 0 18px;
+    background: linear-gradient(180deg, #fff7e6 25%, #f2cf6b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 3px 16px rgba(0, 0, 0, 0.35));
+  }
+  .hero-subtext {
+    font-size: 17.5px;
+    line-height: 1.65;
+    max-width: 540px;
+    color: rgba(255, 247, 230, 0.88);
+    margin: 0 0 26px;
+  }
+  .hero-stats-row {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    max-width: 560px;
+    padding-top: 16px;
+    margin-bottom: 34px;
+    border-top: 1px solid var(--gold-line);
+  }
+  .stat-item { display: flex; flex-direction: column; }
+  .stat-number { font-family: var(--display); font-size: 22px; color: var(--gold-2); }
+  .stat-label { font-size: 13.5px; color: rgba(255, 247, 230, 0.72); }
+
+  .scene-line { margin: 0 0 12px; font-size: 16px; color: var(--gold-2); animation: fadein 0.9s both; }
+  .scene-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+  .scene-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 92px;
+    padding: 11px 18px 10px;
+    background: rgba(255, 247, 230, 0.06);
+    border: 1px solid rgba(255, 247, 230, 0.2);
+    border-radius: 46px 46px 10px 10px;
+    color: rgba(255, 247, 230, 0.75);
+    cursor: pointer;
+    transition: background 0.3s, border-color 0.3s, color 0.3s;
+  }
+  .scene-tab:hover { border-color: var(--gold); }
+  .scene-tab.on { background: rgba(212, 167, 44, 0.18); border-color: var(--gold); color: var(--ivory); }
+  .st-hindi { font-family: var(--display); font-size: 21px; line-height: 1.1; }
+  .st-name { font-size: 12.5px; }
+  .st-bar { display: block; width: 100%; height: 2px; margin-top: 7px; background: rgba(255, 247, 230, 0.16); border-radius: 2px; overflow: hidden; }
+  .st-bar i { display: block; height: 100%; width: 0; background: var(--gold-2); }
+  .scene-tab.on .st-bar i { animation: fillbar var(--ms) linear forwards; }
+
+  /* Invitation card */
+  .hero-right { display: flex; justify-content: flex-end; }
+  .invite-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--ivory);
+    color: var(--ink);
+    border: 2px solid var(--gold);
+    border-radius: 50% 50% 24px 24px / 84px 84px 24px 24px;
+    overflow: hidden;
+    box-shadow: 0 0 0 6px rgba(212, 167, 44, 0.2), 0 30px 60px rgba(0, 0, 0, 0.45);
+  }
+  .invite-head {
+    padding: 46px 24px 18px;
+    text-align: center;
+    color: var(--ivory);
+    background: linear-gradient(160deg, var(--maroon), var(--wine));
+    border-bottom: 3px solid var(--gold);
+  }
+  .ganesh { display: block; font-family: var(--display); font-size: 15px; color: var(--gold-2); margin-bottom: 8px; }
+  .invite-head h3 { font-family: var(--display); font-weight: 400; font-size: 24px; margin: 0; }
+  .invite-head p { margin: 4px 0 0; font-size: 14px; color: rgba(255, 247, 230, 0.82); }
+  .invite-body { padding: 20px 24px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .card-input-group { display: flex; flex-direction: column; gap: 5px; }
+  .card-input-group label { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .matrimony-select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 11px 38px 11px 12px;
+    border: 1.5px solid #dcc58f;
+    border-radius: 10px;
+    background: #fffdf7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%237c0a2b' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center / 12px;
+    color: var(--ink);
+    font-size: 15px;
+    outline: none;
+    cursor: pointer;
+  }
+  .matrimony-select:focus { border-color: var(--maroon); }
+  .btn-register-cta {
+    margin-top: 4px;
+    background: linear-gradient(135deg, var(--gold-2), var(--gold));
+    color: #3a0618;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(124, 10, 43, 0.28);
+    transition: filter 0.2s;
+  }
+  .btn-register-cta:hover { filter: brightness(1.07); }
+  .card-disclaimer { font-size: 12px; color: var(--ink-soft); text-align: center; margin: 0; }
+
+  /* Scalloped arch edge at the bottom of the hero */
+  .hero-scallop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 22px;
+    z-index: 6;
+    background: radial-gradient(circle at 50% 100%, transparent 0 20px, var(--night) 21px) 0 0 / 44px 22px repeat-x;
+  }
+
+  /* ---------- 4. FILTERS ---------- */
+  .filter-controls-section { padding: 0 20px; }
+  .filters-strip {
+    max-width: 1200px;
+    margin: 20px auto 0;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    background: rgba(255, 247, 230, 0.05);
+    border: 1px solid var(--gold-line);
+    border-radius: 16px;
+  }
+  .filter-group { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .filter-label { font-size: 14px; font-weight: 600; color: var(--gold-2); margin-right: 2px; }
+  .chip {
+    background: transparent;
+    border: 1px solid rgba(255, 247, 230, 0.26);
+    color: rgba(255, 247, 230, 0.88);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .chip:hover { border-color: var(--gold); }
+  .chip.on { background: var(--gold); border-color: var(--gold); color: #3a0618; font-weight: 700; }
+  .btn-reset {
+    background: none;
+    border: none;
+    color: var(--gold-2);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* ---------- 5. PROFILES ---------- */
+  .matches-wrapper { max-width: 1200px; margin: 34px auto 70px; padding: 0 20px; }
+  .matches-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 28px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--gold-line);
+  }
+  .section-heading { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 3.4vw, 36px); margin: 0; }
+  .section-subheading { margin: 4px 0 0; font-size: 15px; color: rgba(255, 247, 230, 0.66); }
+  .status-tag { border: 1px solid var(--gold-line); padding: 5px 14px; border-radius: 999px; font-size: 13.5px; color: var(--gold-2); white-space: nowrap; }
+
+  .profiles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 28px; }
+
+  .profile-card {
+    background: var(--ivory);
+    color: var(--ink);
+    border: 1px solid var(--gold);
+    outline: 1px solid rgba(212, 167, 44, 0.5);
+    outline-offset: -7px;
+    border-radius: 20px;
+    padding: 16px 16px 18px;
+    transition: box-shadow 0.25s;
+  }
+  .profile-card:hover { box-shadow: 0 0 0 3px rgba(212, 167, 44, 0.5), 0 18px 40px rgba(0, 0, 0, 0.5); }
+
+  .arch-wrap { position: relative; margin-bottom: 22px; }
+  .arch {
+    height: 270px;
+    padding: 5px;
+    border: 2px solid var(--gold);
+    border-radius: 999px 999px 10px 10px;
+    background: linear-gradient(#fff, var(--ivory-2));
+  }
+  .arch-in { height: 100%; border-radius: 999px 999px 6px 6px; overflow: hidden; background: #e9d5ad; }
+  .arch-in img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-fallback {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(160deg, var(--maroon), var(--wine));
+    color: var(--gold-2);
+    font-family: var(--display);
+    font-size: 64px;
+  }
+  .role-tag {
+    position: absolute;
+    left: 12px;
+    bottom: -12px;
+    padding: 3px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--gold);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ivory);
+    background: var(--maroon);
+  }
+  .role-tag.male { background: #1d3a73; }
+  .seal {
+    position: absolute;
+    right: 12px;
+    bottom: -12px;
+    padding: 3px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--gold-2);
+    background: #0f7a55;
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .badge-new {
+    position: absolute;
+    top: 8px;
+    right: 0;
+    z-index: 2;
+    padding: 3px 11px;
+    border-radius: 999px;
+    background: var(--gold);
+    color: #3a0618;
+    font-size: 12.5px;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .name-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .card-details h4 { font-family: var(--display); font-weight: 400; font-size: 22px; margin: 0; color: var(--maroon); }
+  .age-pill { font-size: 13px; font-weight: 600; color: var(--maroon); background: #fffdf5; border: 1px solid #dcc58f; border-radius: 999px; padding: 2px 11px; white-space: nowrap; }
+  .vitals { margin: 4px 0 10px; font-size: 14.5px; color: var(--ink-soft); }
+  .meta-lines { display: grid; gap: 5px; padding-top: 10px; margin-bottom: 14px; border-top: 1px dashed #d9c18a; font-size: 14.5px; }
+  .meta-icon { margin-right: 7px; }
+  .card-btns { display: flex; gap: 8px; }
+  .btn-interest {
+    flex: 1;
+    background: var(--maroon);
+    color: var(--ivory);
+    border: 1px solid var(--maroon);
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-interest:hover { background: var(--wine); }
+  .btn-interest.sent { background: #0f7a55; border-color: #0f7a55; }
+  .btn-bio {
+    background: transparent;
+    color: var(--maroon);
+    border: 1.5px solid var(--gold);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-bio:hover { background: var(--ivory-2); }
+
+  .empty-state { text-align: center; padding: 60px 20px; border: 1px dashed var(--gold-line); border-radius: 16px; }
+  .empty-icon { font-size: 40px; display: inline-block; margin-bottom: 8px; }
+  .empty-state h3 { font-family: var(--display); font-weight: 400; font-size: 24px; margin: 0 0 6px; }
+  .empty-state p { margin: 0; color: rgba(255, 247, 230, 0.7); }
+
+  /* ---------- 6 & 7. MODALS ---------- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 1, 8, 0.8);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+  .sheet {
+    position: relative;
+    width: 100%;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    background: var(--ivory);
+    color: var(--ink);
+    border: 2px solid var(--gold);
+    border-radius: 50% 50% 22px 22px / 36px 36px 22px 22px;
+    box-shadow: 0 0 0 5px rgba(212, 167, 44, 0.2), 0 24px 60px rgba(0, 0, 0, 0.5);
+    animation: pop 0.25s ease both;
+  }
+  .login-modal-box { max-width: 410px; padding: 48px 26px 26px; }
+  .bio-modal-box { max-width: 520px; padding: 48px 26px 26px; }
+  .close-btn {
+    position: absolute;
+    top: 34px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ivory-2);
+    color: var(--maroon);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .close-btn:hover { background: #ecd7a6; }
+
+  .modal-title { text-align: center; margin-bottom: 18px; }
+  .modal-icon { font-size: 26px; }
+  .modal-title h2 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 4px 0; color: var(--maroon); }
+  .modal-title p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+  .modal-error { background: #fde8e8; border: 1px solid #f8b4b4; color: #9b1c1c; padding: 10px; border-radius: 8px; font-size: 14px; margin-bottom: 14px; text-align: center; }
+  .modal-form { display: flex; flex-direction: column; gap: 14px; }
+  .input-box { display: flex; flex-direction: column; gap: 5px; }
+  .input-box label { font-size: 13.5px; font-weight: 600; }
+  .input-box input {
+    padding: 11px 12px;
+    border: 1.5px solid #dcc58f;
+    border-radius: 10px;
+    background: #fffdf7;
+    color: var(--ink);
+    font-size: 15px;
+    outline: none;
+  }
+  .input-box input:focus { border-color: var(--maroon); }
+  .btn-modal-submit {
+    margin-top: 4px;
+    padding: 12px;
+    border: 1px solid var(--gold);
+    border-radius: 10px;
+    background: var(--maroon);
+    color: var(--ivory);
+    font-size: 15.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-modal-submit:hover { background: var(--wine); }
+  .btn-modal-submit:disabled { opacity: 0.7; cursor: wait; }
+  .modal-bottom { text-align: center; font-size: 14px; color: var(--ink-soft); margin: 16px 0 0; }
+  .modal-bottom a { color: var(--maroon); font-weight: 700; }
+
+  .bio-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px dashed #d9c18a; }
+  .bio-avatar-wrap { flex: none; width: 84px; height: 104px; border: 2px solid var(--gold); border-radius: 999px 999px 8px 8px; overflow: hidden; background: #e9d5ad; }
+  .bio-avatar-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .bio-avatar-wrap .photo-fallback { font-size: 30px; }
+  .bio-verified-text { font-size: 13px; font-weight: 600; color: #0f7a55; }
+  .bio-head h3 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 2px 0; color: var(--maroon); }
+  .bio-head p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+  .bio-desc { margin-bottom: 14px; font-size: 14.5px; }
+  .bio-desc strong { color: var(--maroon); }
+  .bio-desc p { margin: 4px 0 0; line-height: 1.55; }
+  .bio-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+    margin-bottom: 18px;
+    padding: 14px;
+    background: var(--ivory-2);
+    border: 1px solid #e2cd9a;
+    border-radius: 12px;
+  }
+  .bio-stats div { display: flex; flex-direction: column; }
+  .bio-stats span { font-size: 13px; color: var(--ink-soft); }
+  .bio-stats strong { font-size: 14.5px; }
+  .btn-interest.full { width: 100%; flex: none; padding: 12px; }
+
+  /* ---------- FOOTER ---------- */
+  .matrimony-footer { background: #14010a; border-top: 1px solid var(--gold-line); padding: 24px 20px; text-align: center; font-size: 13.5px; color: rgba(255, 247, 230, 0.6); }
+  .matrimony-footer p { margin: 0; }
+
+  /* ---------- KEYFRAMES ---------- */
+  @keyframes marq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes spin { from { transform: translateY(-50%) rotate(0deg); } to { transform: translateY(-50%) rotate(360deg); } }
+  @keyframes spinrev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+  @keyframes drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(120px, 80px, 0) scale(1.25); } }
+  @keyframes petal {
+    0% { transform: translate3d(0, -8vh, 0) rotate(0deg); opacity: 0; }
+    8% { opacity: 0.9; }
+    50% { transform: translate3d(46px, 48vh, 0) rotate(200deg); }
+    100% { transform: translate3d(-34px, 105vh, 0) rotate(400deg); opacity: 0; }
+  }
+  @keyframes fillbar { from { width: 0; } to { width: 100%; } }
+  @keyframes wm { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pop { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 900px) {
+    .hero-section { padding: 40px 16px 80px; min-height: 0; }
+    .hero-container { grid-template-columns: 1fr; gap: 36px; }
+    .hero-right { justify-content: center; }
+    .nav-search { display: none; }
+    .m-big { right: -45%; opacity: 0.18; }
+  }
+  @media (max-width: 560px) {
+    .member-label { display: none; }
+    .bio-stats { grid-template-columns: 1fr; }
+    .scene-tab { min-width: 78px; padding: 10px 12px 9px; }
+    .matches-top { flex-direction: column; align-items: flex-start; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-layout *, .home-layout *::before, .home-layout *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+    .petal { display: none; }
+    .scene-tab.on .st-bar i { width: 100%; }
+  }
+`;
